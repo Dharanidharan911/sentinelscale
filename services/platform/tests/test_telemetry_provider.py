@@ -95,14 +95,16 @@ def test_telemetry_provider_factory():
     provider = get_telemetry_provider("mock")
     assert isinstance(provider, MockTelemetryProvider)
 
-    # 2. Future providers raise NotImplementedError
-    with pytest.raises(NotImplementedError):
-        get_telemetry_provider("prometheus")
+    # 2. Prometheus provider (Phase 1B active)
+    from app.services.telemetry.prometheus_provider import PrometheusTelemetryProvider
+    prom_provider = get_telemetry_provider("prometheus")
+    assert isinstance(prom_provider, PrometheusTelemetryProvider)
 
+    # 3. Future Kubernetes provider raises NotImplementedError (Phase 2)
     with pytest.raises(NotImplementedError):
         get_telemetry_provider("kubernetes")
 
-    # 3. Unknown provider raises TelemetryProviderError
+    # 4. Unknown provider raises TelemetryProviderError
     with pytest.raises(TelemetryProviderError):
         get_telemetry_provider("non_existent_provider")
 

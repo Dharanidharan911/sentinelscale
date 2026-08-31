@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.endpoints import router as v1_router
 from app.logging import StructuredLoggingMiddleware
+from app.metrics import PrometheusMetricsMiddleware, generate_prometheus_metrics_text
 
 app = FastAPI(
     title="SentinelScale — Demo E-Commerce API",
@@ -13,6 +14,7 @@ app = FastAPI(
 )
 
 app.add_middleware(StructuredLoggingMiddleware)
+app.add_middleware(PrometheusMetricsMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -39,6 +41,13 @@ async def version():
         "service_version": "0.1.0",
         "environment": "development"
     }
+
+
+@app.get("/metrics", tags=["System"], response_class=Response)
+async def metrics():
+    """Expose Prometheus formatted metrics text."""
+    content = generate_prometheus_metrics_text()
+    return Response(content=content, media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
 # Attach product catalog and user business endpoints under root & versioned

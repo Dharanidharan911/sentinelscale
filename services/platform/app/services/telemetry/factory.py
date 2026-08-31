@@ -2,6 +2,7 @@ from typing import Optional
 from app.config.settings import settings
 from app.services.telemetry.base import ResourceTelemetryProvider, TelemetryProviderError
 from app.services.telemetry.mock_provider import MockTelemetryProvider
+from app.services.telemetry.prometheus_provider import PrometheusTelemetryProvider
 
 
 def get_telemetry_provider(provider_type: Optional[str] = None) -> ResourceTelemetryProvider:
@@ -13,14 +14,15 @@ def get_telemetry_provider(provider_type: Optional[str] = None) -> ResourceTelem
 
     if selected_type == "mock":
         return MockTelemetryProvider()
-    elif selected_type in ("prometheus", "kubernetes"):
+    elif selected_type == "prometheus":
+        return PrometheusTelemetryProvider()
+    elif selected_type == "kubernetes":
         raise NotImplementedError(
-            f"Provider '{selected_type}' is scheduled for Phase 1 expansion and not yet active. "
-            "Use TELEMETRY_PROVIDER=mock."
+            "Provider 'kubernetes' is scheduled for Phase 2 Kubernetes integration. "
+            "Use TELEMETRY_PROVIDER=mock or TELEMETRY_PROVIDER=prometheus."
         )
     else:
         raise TelemetryProviderError(
             provider_name="factory",
             message=f"Unknown telemetry provider type: '{selected_type}'. Valid options: ['mock', 'prometheus', 'kubernetes']."
         )
-
