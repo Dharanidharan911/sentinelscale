@@ -92,7 +92,7 @@ def main() -> int:
     print("=" * 70)
 
     if not failed_services:
-        print(" ALL 4 SERVICE TEST SUITES PASSED (30 tests total)")
+        print(" ALL 4 SERVICE TEST SUITES PASSED SUCCESSFULLY")
         print("=" * 70)
         return 0
     else:

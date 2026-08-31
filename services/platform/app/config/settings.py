@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     PORT: int = 8003
 
+    # Telemetry Provider Configuration: "mock" | "prometheus" | "kubernetes"
+    TELEMETRY_PROVIDER: str = "mock"
+
     # Upstream Intelligence URLs
     TRAFFIC_INTELLIGENCE_URL: str = "http://traffic-intelligence:8001"
     DEMAND_INTELLIGENCE_URL: str = "http://demand-intelligence:8002"

@@ -1,22 +1,20 @@
-import uuid
-from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, Header, Query
-from app.config.settings import settings
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from app.models.context import DecisionContext
 from app.models.decision import ScalingDecision
 from app.models.resource import ResourceState
-from app.mock.generator import MockResourceDataGenerator
 from app.services.decision_engine import DecisionEngine
 from app.services.resource_observer import ResourceObserverService
-from app.clients.traffic_client import TrafficIntelligenceClient
-from app.clients.demand_client import DemandIntelligenceClient
+from app.services.telemetry.base import ResourceTelemetryProvider, TelemetryProviderError
+from app.services.telemetry.factory import get_telemetry_provider
 
 router = APIRouter(tags=["Platform & Resource Intelligence"])
 
 
-def get_resource_observer() -> ResourceObserverService:
-    return ResourceObserverService()
+def get_resource_observer(
+    provider: ResourceTelemetryProvider = Depends(get_telemetry_provider)
+) -> ResourceObserverService:
+    return ResourceObserverService(provider=provider)
 
 
 def get_decision_engine() -> DecisionEngine:
@@ -33,11 +31,17 @@ async def get_current_resources(
     """
     Retrieve real-time resource utilization and capacity state for a target workload.
     """
-    return await observer.get_current_resource_state(
-        namespace=namespace,
-        workload=workload,
-        trace_id=x_trace_id
-    )
+    try:
+        return await observer.get_current_resource_state(
+            namespace=namespace,
+            workload=workload,
+            trace_id=x_trace_id
+        )
+    except TelemetryProviderError as err:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Telemetry Provider Failure: {err.message}"
+        ) from err
 
 
 @router.post("/decision/evaluate", response_model=ScalingDecision)
