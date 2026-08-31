@@ -88,17 +88,23 @@ uvicorn app.main:app --port 8000 --reload
 
 ## 4. Running the Test Suite
 
-Run all unit tests and contract conformance checks across all services:
+Run unit tests and contract conformance checks across all independent microservices:
 
 ```bash
-# Run all tests from repository root
-pytest -v
+# Option A: Run all services in isolated environments (Recommended)
+python run_tests.py
 
-# Run service-specific tests
-pytest services/traffic-intelligence/tests -v
-pytest services/demand-intelligence/tests -v
-pytest services/platform/tests -v
-pytest demo-api/tests -v
+# Option B: Run a specific service using the test runner
+python run_tests.py platform
+python run_tests.py traffic
+python run_tests.py demand
+python run_tests.py demo
+
+# Option C: Run pytest directly with service-specific pythonpath
+pytest services/platform/tests -v -o pythonpath=services/platform
+pytest services/traffic-intelligence/tests -v -o pythonpath=services/traffic-intelligence
+pytest services/demand-intelligence/tests -v -o pythonpath=services/demand-intelligence
+pytest demo-api/tests -v -o pythonpath=demo-api
 ```
 
 ---

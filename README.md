@@ -107,7 +107,8 @@ docker-compose up --build
 ### Run Test Suite
 
 ```bash
-pytest -v
+# Run all services in isolated test environments
+python run_tests.py
 ```
 
 ---
