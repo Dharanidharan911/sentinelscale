@@ -1,0 +1,2 @@
+# Placeholder for future ML model binaries and serialization artifacts
+# Real model weights/pickles must be tracked via MLflow or remote artifact registry.

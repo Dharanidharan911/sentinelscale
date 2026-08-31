@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: traffic-intelligence
+  namespace: sentinelscale
+  labels:
+    app.kubernetes.io/name: traffic-intelligence
+    app.kubernetes.io/part-of: sentinelscale
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: traffic-intelligence
+  ports:
+    - name: http
+      port: 8001
+      targetPort: 8001

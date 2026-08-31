@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sentinelscale.io/schemas/v1/scaling_decision.schema.json",
+  "title": "ScalingDecision",
+  "description": "Output schema for Module 3 (Decision Engine) specifying policy-guarded scaling/mitigation recommendations.",
+  "type": "object",
+  "required": [
+    "decision_id",
+    "event_id",
+    "trace_id",
+    "timestamp",
+    "contract_version",
+    "service_version",
+    "model_version",
+    "action",
+    "reason",
+    "confidence",
+    "traffic_risk",
+    "predicted_legitimate_rps",
+    "current_capacity_rps",
+    "current_pods",
+    "recommended_pods",
+    "baseline_hpa_recommended_pods",
+    "pod_delta_vs_baseline",
+    "policy",
+    "dry_run",
+    "shadow_mode"
+  ],
+  "properties": {
+    "decision_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this decision recommendation."
+    },
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Upstream triggering event identifier."
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "Distributed tracing identifier."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 decision generation timestamp."
+    },
+    "contract_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of this JSON Schema contract."
+    },
+    "service_version": {
+      "type": "string",
+      "description": "Version of the Platform service that generated the decision."
+    },
+    "model_version": {
+      "type": "string",
+      "description": "Decision rule/engine version (e.g. policy-rules-v0)."
+    },
+    "action": {
+      "type": "string",
+      "enum": ["SCALE", "RATE_LIMIT", "MITIGATE", "HOLD"],
+      "description": "The recommended infrastructure or traffic action."
+    },
+    "reason": {
+      "type": "string",
+      "description": "Deterministic rationale and explanation for the recommended action."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Composite confidence score for the recommendation."
+    },
+    "traffic_risk": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Ingested security risk score from Traffic Intelligence."
+    },
+    "predicted_legitimate_rps": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Ingested predicted legitimate demand from Demand Intelligence."
+    },
+    "current_capacity_rps": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Observed current cluster capacity for this workload."
+    },
+    "current_pods": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Currently active replica count."
+    },
+    "recommended_pods": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "SentinelScale recommended replica count based on legitimate demand."
+    },
+    "baseline_hpa_recommended_pods": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Replica count that traditional reactive HPA would recommend for raw total load."
+    },
+    "pod_delta_vs_baseline": {
+      "type": "integer",
+      "description": "Difference in pods (SentinelScale recommended - baseline HPA recommended). Negative means avoided overprovisioning."
+    },
+    "policy": {
+      "type": "string",
+      "description": "Policy guardrail identifier enforced (e.g. default-safe-policy, shadow-evaluation-policy)."
+    },
+    "dry_run": {
+      "type": "boolean",
+      "default": true,
+      "description": "Safety flag: must be true to prevent automatic actuation."
+    },
+    "shadow_mode": {
+      "type": "boolean",
+      "default": true,
+      "description": "Flag indicating decision is running in shadow comparison mode."
+    }
+  },
+  "additionalProperties": false
+}

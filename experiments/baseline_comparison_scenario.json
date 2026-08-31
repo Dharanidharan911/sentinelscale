@@ -1,0 +1,16 @@
+{
+  "scenario_id": "scen-ddos-burst-001",
+  "description": "Simulated 5-minute Layer 7 HTTP flood mixed with legitimate customer checkouts.",
+  "duration_seconds": 300,
+  "traffic_profile": {
+    "baseline_legitimate_rps": 800,
+    "attack_surge_rps": 3500,
+    "attack_classification": "malicious",
+    "attack_signals": ["high_burst_rate", "client_ip_clustering", "random_params"]
+  },
+  "expected_evaluations": {
+    "standard_hpa_expected_action": "SCALE_UP (to 12 pods based on total 4300 RPS)",
+    "sentinelscale_expected_action": "HOLD (maintain 4 pods for 800 RPS legitimate demand)",
+    "expected_overprovisioning_savings": "8 pods (66.7% compute cost reduction)"
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sentinelscale.io/schemas/v1/traffic_assessment.schema.json",
+  "title": "TrafficAssessment",
+  "description": "Output schema for Module 1 (Traffic Intelligence) evaluating API traffic risk and legitimacy.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "trace_id",
+    "timestamp",
+    "contract_version",
+    "service_version",
+    "model_version",
+    "window_seconds",
+    "total_rps",
+    "legitimate_rps_estimate",
+    "suspicious_rps_estimate",
+    "risk_score",
+    "legitimacy_score",
+    "confidence",
+    "classification",
+    "top_signals"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this assessment event."
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "Distributed tracing identifier associated with the request or evaluation window."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 evaluation timestamp."
+    },
+    "contract_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of this JSON Schema contract."
+    },
+    "service_version": {
+      "type": "string",
+      "description": "Version of the Traffic Intelligence service that produced this assessment."
+    },
+    "model_version": {
+      "type": "string",
+      "description": "Identifier/version of the traffic scoring model (e.g. traffic-v0, traffic-xgb-v1)."
+    },
+    "window_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Observation time window duration in seconds."
+    },
+    "total_rps": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Observed total requests per second during window."
+    },
+    "legitimate_rps_estimate": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Estimated legitimate requests per second."
+    },
+    "suspicious_rps_estimate": {
+      "type": "number",
+      "minimum": 0.0,
+      "description": "Estimated suspicious or anomalous requests per second."
+    },
+    "risk_score": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Assessed security risk probability score between 0.0 and 1.0."
+    },
+    "legitimacy_score": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Assessed traffic legitimacy score between 0.0 and 1.0."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Assessment confidence between 0.0 and 1.0."
+    },
+    "classification": {
+      "type": "string",
+      "enum": ["legitimate", "suspicious", "malicious", "unknown"],
+      "description": "Categorical traffic classification."
+    },
+    "top_signals": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Key behavioral or anomaly signals detected."
+    }
+  },
+  "additionalProperties": false
+}

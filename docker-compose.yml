@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  demo-api:
+    build:
+      context: ./demo-api
+      dockerfile: Dockerfile
+    container_name: sentinelscale-demo-api
+    ports:
+      - "${DEMO_API_PORT:-8000}:8000"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - sentinelscale-net
+
+  traffic-intelligence:
+    build:
+      context: ./services/traffic-intelligence
+      dockerfile: Dockerfile
+    container_name: sentinelscale-traffic-intelligence
+    ports:
+      - "${TRAFFIC_INTELLIGENCE_PORT:-8001}:8001"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PORT=8001
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - sentinelscale-net
+
+  demand-intelligence:
+    build:
+      context: ./services/demand-intelligence
+      dockerfile: Dockerfile
+    container_name: sentinelscale-demand-intelligence
+    ports:
+      - "${DEMAND_INTELLIGENCE_PORT:-8002}:8002"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PORT=8002
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - sentinelscale-net
+
+  platform:
+    build:
+      context: ./services/platform
+      dockerfile: Dockerfile
+    container_name: sentinelscale-platform
+    ports:
+      - "${PLATFORM_PORT:-8003}:8003"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PORT=8003
+      - TRAFFIC_INTELLIGENCE_URL=http://traffic-intelligence:8001
+      - DEMAND_INTELLIGENCE_URL=http://demand-intelligence:8002
+      - PROMETHEUS_URL=http://prometheus:9090
+      - SENTINEL_DRY_RUN=${SENTINEL_DRY_RUN:-true}
+      - SENTINEL_SHADOW_MODE=${SENTINEL_SHADOW_MODE:-true}
+      - SENTINEL_AUTONOMOUS_ACTIONS_ENABLED=${SENTINEL_AUTONOMOUS_ACTIONS_ENABLED:-false}
+    depends_on:
+      - traffic-intelligence
+      - demand-intelligence
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - sentinelscale-net
+
+  prometheus:
+    image: prom/prometheus:v2.50.1
+    container_name: sentinelscale-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./telemetry/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - sentinelscale-net
+
+networks:
+  sentinelscale-net:
+    driver: bridge

@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sentinelscale.io/schemas/v1/decision_context.schema.json",
+  "title": "DecisionContext",
+  "description": "Unified context schema aggregating traffic intelligence, demand forecast, and resource state for policy-guarded scaling decisions.",
+  "type": "object",
+  "required": [
+    "context_id",
+    "trace_id",
+    "timestamp",
+    "contract_version",
+    "target_workload",
+    "traffic_assessment",
+    "demand_forecast",
+    "resource_state",
+    "dry_run",
+    "shadow_mode"
+  ],
+  "properties": {
+    "context_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this decision context."
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "Distributed tracing identifier linking all upstream intelligence."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 evaluation timestamp."
+    },
+    "contract_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of this JSON Schema contract."
+    },
+    "target_workload": {
+      "type": "string",
+      "description": "Target Kubernetes deployment being evaluated."
+    },
+    "traffic_assessment": {
+      "$ref": "https://sentinelscale.io/schemas/v1/traffic_assessment.schema.json",
+      "description": "Output from Module 1 (Traffic Intelligence)."
+    },
+    "demand_forecast": {
+      "$ref": "https://sentinelscale.io/schemas/v1/demand_forecast.schema.json",
+      "description": "Output from Module 2 (Demand Intelligence)."
+    },
+    "resource_state": {
+      "$ref": "https://sentinelscale.io/schemas/v1/resource_state.schema.json",
+      "description": "Current infrastructure and telemetry state."
+    },
+    "policy_overrides": {
+      "type": "object",
+      "properties": {
+        "min_pods": { "type": "integer", "minimum": 1 },
+        "max_pods": { "type": "integer", "minimum": 1 },
+        "target_cpu_utilization": { "type": "number", "minimum": 0.1, "maximum": 1.0 },
+        "pod_rps_capacity": { "type": "number", "minimum": 1.0 }
+      },
+      "additionalProperties": false,
+      "description": "Optional policy constraints overriding default limits."
+    },
+    "dry_run": {
+      "type": "boolean",
+      "default": true,
+      "description": "If true, decision is evaluated as a recommendation without modifying infrastructure."
+    },
+    "shadow_mode": {
+      "type": "boolean",
+      "default": true,
+      "description": "If true, decision is evaluated alongside baseline HPA for comparison."
+    }
+  },
+  "additionalProperties": false
+}
