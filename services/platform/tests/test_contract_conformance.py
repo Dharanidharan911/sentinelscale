@@ -5,8 +5,42 @@ from pathlib import Path
 import jsonschema
 from fastapi.testclient import TestClient
 from app.main import app
+from tests.fixtures_decision import make_decision_context
 
 client = TestClient(app)
+
+CONTRACTS_DIR = Path(__file__).resolve().parents[3] / "contracts"
+
+
+def load_contract_schema(relative_path: str) -> dict:
+    with open(CONTRACTS_DIR / relative_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def build_local_ref_resolver() -> jsonschema.RefResolver:
+    """
+    Resolve $ref URLs (https://sentinelscale.io/schemas/v1/...) against the
+    local contracts/ directory — no network access required.
+    """
+    schema_files = {
+        "traffic_assessment.schema.json": load_contract_schema("traffic/traffic_assessment.schema.json"),
+        "demand_forecast.schema.json": load_contract_schema("demand/demand_forecast.schema.json"),
+        "resource_state.schema.json": load_contract_schema("resources/resource_state.schema.json"),
+        "decision_context.schema.json": load_contract_schema("decisions/decision_context.schema.json"),
+        "scaling_decision.schema.json": load_contract_schema("decisions/scaling_decision.schema.json"),
+    }
+
+    def resolve(uri: str):
+        file_name = uri.rsplit("/", 1)[-1]
+        if file_name not in schema_files:
+            raise jsonschema.RefResolutionError(f"Unknown contract ref: {uri}")
+        return schema_files[file_name]
+
+    class LocalRefResolver(jsonschema.RefResolver):
+        def resolve_remote(self, uri: str):
+            return resolve(uri)
+
+    return LocalRefResolver(base_uri="", referrer={})
 
 
 def test_resource_state_matches_json_schema():
@@ -19,6 +53,19 @@ def test_resource_state_matches_json_schema():
     payload = response.json()
 
     jsonschema.validate(instance=payload, schema=schema)
+
+
+def test_decision_context_model_matches_json_schema():
+    """Verify a typed DecisionContext (built from contract-valid fixtures) conforms to its frozen JSON Schema."""
+    resolver = build_local_ref_resolver()
+    context = make_decision_context(trace_id="contract-context-trace")
+
+    jsonschema.validate(
+        # exclude_none: policy_overrides is optional (absent), not JSON null
+        instance=context.model_dump(mode="json", exclude_none=True),
+        schema=load_contract_schema("decisions/decision_context.schema.json"),
+        resolver=resolver,
+    )
 
 
 def test_scaling_decision_matches_json_schema():

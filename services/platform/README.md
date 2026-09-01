@@ -157,6 +157,36 @@ rules:
 
 ---
 
+## Decision Pipeline (Phase 3A)
+
+The Platform decision pipeline is fully deterministic and operates exclusively on typed domain
+objects — the Decision Engine performs **no HTTP, Kubernetes, Prometheus, or cross-service calls**:
+
+```
+ResourceState + TrafficAssessment + DemandForecast + PolicyOverrides
+                         ▼
+                 DecisionContext (typed, contract-valid)
+                         ▼
+                 DecisionEngine  ──►  BaselineHPACalculator (independent, risk-blind)
+                         │
+                 PolicyGuardrail (min/max clamps, 2x step-up surge protection)
+                         ▼
+                 ScalingDecision (recommendation only: dry_run=True, shadow_mode)
+```
+
+Key properties (all enforced by tests):
+- **Legitimate demand drives scaling** — `ceil(predicted_legitimate_rps / pod_rps_capacity)`, never total traffic.
+- **High risk + legitimate demand within capacity → HOLD** (no reactive overprovisioning during attacks).
+- **Legitimate demand exceeding capacity → SCALE**, constrained by policy guardrails.
+- **Baseline HPA and SentinelScale recommendations are computed and reported independently**
+  (`baseline_hpa_recommended_pods`, `recommended_pods`, `pod_delta_vs_baseline`) for Phase 5 comparison.
+- **`dry_run=True` is a hardcoded code-level safety guarantee** (ADR-002): even a context with
+  `dry_run=False` yields a recommendation-only decision. No Kubernetes actuation exists anywhere
+  in the decision path.
+- Guardrail evaluation order (documented): min clamp → max ceiling → 2x step-up surge protection.
+
+---
+
 ## Configuration
 
 | Environment Variable | Default | Description |
