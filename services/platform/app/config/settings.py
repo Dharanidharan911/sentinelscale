@@ -1,3 +1,4 @@
+from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,6 +19,12 @@ class Settings(BaseSettings):
     PROMETHEUS_TIMEOUT_SECONDS: float = 5.0
     PROMETHEUS_QUERY_WINDOW: str = "1m"
 
+    # Upstream Kubernetes API Telemetry Configuration
+    KUBERNETES_API_URL: Optional[str] = None
+    KUBERNETES_TOKEN: Optional[str] = None
+    KUBECONFIG_PATH: Optional[str] = None
+    KUBERNETES_TIMEOUT_SECONDS: float = 5.0
+
     # Upstream Intelligence URLs
     TRAFFIC_INTELLIGENCE_URL: str = "http://traffic-intelligence:8001"
     DEMAND_INTELLIGENCE_URL: str = "http://demand-intelligence:8002"
@@ -27,9 +34,7 @@ class Settings(BaseSettings):
     SENTINEL_SHADOW_MODE: bool = True
     SENTINEL_AUTONOMOUS_ACTIONS_ENABLED: bool = False
 
-    # Configuration-Based Capacity & Resource Baseline Assumptions (Phase 1B)
-    # NOTE: These serve as baseline configuration assumptions in Phase 1B
-    # and will be dynamically supplied by the Kubernetes Telemetry Provider in Phase 2.
+    # Configuration-Based Capacity & Resource Baseline Assumptions
     DEFAULT_POD_RPS_CAPACITY: float = 350.0
     DEFAULT_MIN_PODS: int = 2
     DEFAULT_MAX_PODS: int = 20

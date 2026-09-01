@@ -3,6 +3,7 @@ from app.config.settings import settings
 from app.services.telemetry.base import ResourceTelemetryProvider, TelemetryProviderError
 from app.services.telemetry.mock_provider import MockTelemetryProvider
 from app.services.telemetry.prometheus_provider import PrometheusTelemetryProvider
+from app.services.telemetry.kubernetes_provider import KubernetesTelemetryProvider
 
 
 def get_telemetry_provider(provider_type: Optional[str] = None) -> ResourceTelemetryProvider:
@@ -17,10 +18,7 @@ def get_telemetry_provider(provider_type: Optional[str] = None) -> ResourceTelem
     elif selected_type == "prometheus":
         return PrometheusTelemetryProvider()
     elif selected_type == "kubernetes":
-        raise NotImplementedError(
-            "Provider 'kubernetes' is scheduled for Phase 2 Kubernetes integration. "
-            "Use TELEMETRY_PROVIDER=mock or TELEMETRY_PROVIDER=prometheus."
-        )
+        return KubernetesTelemetryProvider()
     else:
         raise TelemetryProviderError(
             provider_name="factory",

@@ -90,7 +90,7 @@ async def test_resource_observer_propagates_provider_failure():
 
 
 def test_telemetry_provider_factory():
-    """Verify factory returns appropriate provider and handles invalid / future choices."""
+    """Verify factory returns appropriate provider and handles invalid choices."""
     # 1. Mock provider
     provider = get_telemetry_provider("mock")
     assert isinstance(provider, MockTelemetryProvider)
@@ -100,9 +100,10 @@ def test_telemetry_provider_factory():
     prom_provider = get_telemetry_provider("prometheus")
     assert isinstance(prom_provider, PrometheusTelemetryProvider)
 
-    # 3. Future Kubernetes provider raises NotImplementedError (Phase 2)
-    with pytest.raises(NotImplementedError):
-        get_telemetry_provider("kubernetes")
+    # 3. Kubernetes provider (Phase 2A active)
+    from app.services.telemetry.kubernetes_provider import KubernetesTelemetryProvider
+    k8s_provider = get_telemetry_provider("kubernetes")
+    assert isinstance(k8s_provider, KubernetesTelemetryProvider)
 
     # 4. Unknown provider raises TelemetryProviderError
     with pytest.raises(TelemetryProviderError):
