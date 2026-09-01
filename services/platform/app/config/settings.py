@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     PORT: int = 8003
 
-    # Telemetry Provider Configuration: "mock" | "prometheus" | "kubernetes"
+    # Telemetry Provider Configuration: "mock" | "prometheus" | "kubernetes" | "hybrid"
     TELEMETRY_PROVIDER: str = "mock"
 
     # Upstream Prometheus Telemetry Configuration

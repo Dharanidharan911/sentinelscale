@@ -2,6 +2,7 @@ from app.services.telemetry.base import ResourceTelemetryProvider, TelemetryProv
 from app.services.telemetry.mock_provider import MockTelemetryProvider
 from app.services.telemetry.prometheus_provider import PrometheusTelemetryProvider
 from app.services.telemetry.kubernetes_provider import KubernetesTelemetryProvider
+from app.services.telemetry.hybrid_provider import HybridTelemetryProvider
 from app.services.telemetry.factory import get_telemetry_provider
 from app.services.telemetry.quantity_parser import parse_cpu_quantity, parse_memory_quantity
 
@@ -11,6 +12,7 @@ __all__ = [
     "MockTelemetryProvider",
     "PrometheusTelemetryProvider",
     "KubernetesTelemetryProvider",
+    "HybridTelemetryProvider",
     "get_telemetry_provider",
     "parse_cpu_quantity",
     "parse_memory_quantity",
