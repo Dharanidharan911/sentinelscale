@@ -7,7 +7,10 @@ from typing import Optional
 from app.config.settings import settings
 from app.logging import logger
 from app.models.decision import ScalingDecision
+from app.models.history import StoredObservation
 from app.services.context_aggregator import ContextAggregatorService
+from app.services.history.base import DecisionHistoryStore
+from app.services.history.factory import get_history_store
 
 
 @dataclass
@@ -25,19 +28,21 @@ class ObservationResult:
 
 class ObservationSchedulerService:
     """
-    Phase 4A Continuous Observation Scheduler.
-    Periodically triggers end-to-end decision orchestration via ContextAggregatorService.
+    Phase 4A/4B Continuous Observation Scheduler & Audit Recorder.
+    Periodically triggers end-to-end decision orchestration via ContextAggregatorService
+    and persists observation records in DecisionHistoryStore.
     Guarantees:
       - Observation-only (never invokes actuation or infrastructure mutation)
       - Single-flight / non-overlapping execution via asyncio.Lock
       - Unique distributed trace_id per evaluation
-      - Error isolation (failures log cleanly and do not crash the scheduler loop)
-      - Graceful startup and shutdown lifecycle management
+      - Error isolation (evaluation or persistence failures do not crash the scheduler loop)
+      - Graceful startup, retention cleanup, and shutdown lifecycle management
     """
 
     def __init__(
         self,
         aggregator: Optional[ContextAggregatorService] = None,
+        history_store: Optional[DecisionHistoryStore] = None,
         interval_seconds: Optional[float] = None,
         target_namespace: Optional[str] = None,
         target_workload: Optional[str] = None,
@@ -46,6 +51,11 @@ class ObservationSchedulerService:
         evaluation_timeout_seconds: Optional[float] = None,
     ):
         self.aggregator = aggregator or ContextAggregatorService()
+        self.history_store = (
+            history_store
+            if history_store is not None
+            else (get_history_store() if settings.DECISION_HISTORY_ENABLED else None)
+        )
         self.interval_seconds = interval_seconds or settings.OBSERVATION_INTERVAL_SECONDS
         self.target_namespace = target_namespace or settings.OBSERVATION_TARGET_NAMESPACE
         self.target_workload = target_workload or settings.OBSERVATION_TARGET_WORKLOAD
@@ -84,9 +94,21 @@ class ObservationSchedulerService:
         self._running = True
         logger.info(
             f"Starting ObservationScheduler for '{self.target_namespace}/{self.target_workload}' "
-            f"(interval: {self.interval_seconds}s, timeout: {self.evaluation_timeout_seconds}s)",
+            f"(interval: {self.interval_seconds}s, timeout: {self.evaluation_timeout_seconds}s, "
+            f"history_enabled: {self.history_store is not None})",
             extra={"service": "platform"},
         )
+
+        # Run retention cleanup on startup if history store is active
+        if self.history_store:
+            try:
+                self.history_store.cleanup_old_observations(settings.DECISION_HISTORY_RETENTION_DAYS)
+            except Exception as clean_err:
+                logger.warning(
+                    f"Initial retention cleanup failed: {clean_err}",
+                    extra={"service": "platform"},
+                )
+
         self._task = asyncio.create_task(self._run_loop())
 
     async def stop(self) -> None:
@@ -110,8 +132,7 @@ class ObservationSchedulerService:
     async def execute_evaluation(self, trace_id: Optional[str] = None) -> Optional[ObservationResult]:
         """
         Execute a single scheduled observation evaluation cycle.
-        Guarantees single-flight non-overlapping execution. If an evaluation is already
-        in progress, subsequent triggers are skipped safely until the next cycle.
+        Guarantees single-flight non-overlapping execution and durable audit persistence.
         """
         if self._lock.locked():
             logger.warning(
@@ -155,6 +176,38 @@ class ObservationSchedulerService:
                 self._last_result = result
                 self._evaluation_count += 1
 
+                # Persist successful observation record
+                if self.history_store:
+                    try:
+                        obs = StoredObservation(
+                            id=evaluation_id,
+                            trace_id=resolved_trace_id,
+                            timestamp=started_at,
+                            completed_at=completed_at,
+                            duration_ms=duration_ms,
+                            success=True,
+                            action=decision.action,
+                            reason=decision.reason,
+                            confidence=decision.confidence,
+                            recommended_pods=decision.recommended_pods,
+                            current_pods=decision.current_pods,
+                            baseline_hpa_recommended_pods=decision.baseline_hpa_recommended_pods,
+                            pod_delta_vs_baseline=decision.pod_delta_vs_baseline,
+                            traffic_risk=decision.traffic_risk,
+                            predicted_legitimate_rps=decision.predicted_legitimate_rps,
+                            current_capacity_rps=decision.current_capacity_rps,
+                            policy=decision.policy,
+                            dry_run=decision.dry_run,
+                            shadow_mode=decision.shadow_mode,
+                            scaling_decision_json=decision.model_dump_json(),
+                        )
+                        self.history_store.record_observation(obs)
+                    except Exception as hist_err:
+                        logger.error(
+                            f"Failed to record observation in history store: {hist_err}",
+                            extra={"evaluation_id": evaluation_id, "trace_id": resolved_trace_id, "service": "platform"},
+                        )
+
                 logger.info(
                     f"Observation #{self._evaluation_count} completed: Action={decision.action.value}, "
                     f"RecommendedPods={decision.recommended_pods}, BaselineHPAPods={decision.baseline_hpa_recommended_pods}, "
@@ -194,6 +247,26 @@ class ObservationSchedulerService:
                 self._last_result = result
                 self._failure_count += 1
 
+                # Persist failed observation record for audit & debugging
+                if self.history_store:
+                    try:
+                        obs = StoredObservation(
+                            id=evaluation_id,
+                            trace_id=resolved_trace_id,
+                            timestamp=started_at,
+                            completed_at=completed_at,
+                            duration_ms=duration_ms,
+                            success=False,
+                            error_type=exc.__class__.__name__,
+                            error_message=error_msg,
+                        )
+                        self.history_store.record_observation(obs)
+                    except Exception as hist_err:
+                        logger.error(
+                            f"Failed to record observation failure in history store: {hist_err}",
+                            extra={"evaluation_id": evaluation_id, "trace_id": resolved_trace_id, "service": "platform"},
+                        )
+
                 logger.error(
                     f"Observation cycle failed in {duration_ms}ms: {error_msg}",
                     extra={
@@ -228,4 +301,3 @@ def get_observation_scheduler() -> ObservationSchedulerService:
     if _global_scheduler is None:
         _global_scheduler = ObservationSchedulerService()
     return _global_scheduler
-

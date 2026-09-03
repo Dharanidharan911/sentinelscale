@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     OBSERVATION_FORECAST_HORIZON_SECONDS: int = Field(default=300, ge=1, description="Forecasting horizon for Demand Intelligence.")
     OBSERVATION_EVALUATION_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0.0, description="Max execution timeout per scheduled evaluation.")
 
+    # Decision History & Audit Store Configuration (Phase 4B)
+    DECISION_HISTORY_ENABLED: bool = True
+    DECISION_HISTORY_DB_PATH: str = "./data/sentinelscale_history.db"
+    DECISION_HISTORY_RETENTION_DAYS: int = Field(default=7, ge=1, description="Observation history retention period in days.")
+
     @field_validator("OBSERVATION_INTERVAL_SECONDS")
     @classmethod
     def validate_interval(cls, v: float) -> float:

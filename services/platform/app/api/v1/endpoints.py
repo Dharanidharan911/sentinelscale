@@ -1,11 +1,15 @@
-from typing import Optional
+from typing import List, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
+from app.config.settings import settings
 from app.models.context import DecisionContext, PolicyOverrides
 from app.models.decision import ScalingDecision
+from app.models.history import HistoryStats, StoredObservation
 from app.models.resource import ResourceState
 from app.services.context_aggregator import AggregationError, ContextAggregatorService
 from app.services.decision_engine import DecisionEngine
+from app.services.history.base import DecisionHistoryStore
+from app.services.history.factory import get_history_store
 from app.services.resource_observer import ResourceObserverService
 from app.services.telemetry.base import ResourceTelemetryProvider, TelemetryProviderError
 from app.services.telemetry.factory import get_telemetry_provider
@@ -39,6 +43,10 @@ def get_context_aggregator(
         resource_observer=observer,
         decision_engine=engine,
     )
+
+
+def get_history_repository() -> DecisionHistoryStore:
+    return get_history_store()
 
 
 @router.get("/resources/current", response_model=ResourceState)
@@ -139,3 +147,52 @@ async def aggregate_decision_context(
             status_code=502,
             detail=f"Telemetry Provider Failure: {tel_err.message}",
         ) from tel_err
+
+
+# ==============================================================================
+# Phase 4B: Read-Only Decision History & Audit Endpoints
+# ==============================================================================
+
+@router.get("/history", response_model=List[StoredObservation])
+async def list_history(
+    limit: int = Query(default=50, ge=1, le=500, description="Maximum number of records to return."),
+    offset: int = Query(default=0, ge=0, description="Pagination offset."),
+    success: Optional[bool] = Query(default=None, description="Filter by evaluation success status."),
+    action: Optional[str] = Query(default=None, description="Filter by scaling action (e.g. HOLD, SCALE)."),
+    trace_id: Optional[str] = Query(default=None, description="Filter by distributed trace ID."),
+    store: DecisionHistoryStore = Depends(get_history_repository),
+) -> List[StoredObservation]:
+    """
+    Retrieve historical observation evaluations ordered newest-first with pagination and filters.
+    """
+    return store.list_observations(
+        limit=limit,
+        offset=offset,
+        success=success,
+        action=action,
+        trace_id=trace_id,
+    )
+
+
+@router.get("/history/stats", response_model=HistoryStats)
+async def get_history_stats(
+    store: DecisionHistoryStore = Depends(get_history_repository),
+) -> HistoryStats:
+    """
+    Retrieve summary metrics for recorded observations.
+    """
+    return store.get_stats(retention_days=settings.DECISION_HISTORY_RETENTION_DAYS)
+
+
+@router.get("/history/{observation_id}", response_model=StoredObservation)
+async def get_history_item(
+    observation_id: str,
+    store: DecisionHistoryStore = Depends(get_history_repository),
+) -> StoredObservation:
+    """
+    Retrieve full audit fidelity for a single observation record by UUID.
+    """
+    observation = store.get_observation(observation_id=observation_id)
+    if not observation:
+        raise HTTPException(status_code=404, detail=f"Observation '{observation_id}' not found.")
+    return observation
