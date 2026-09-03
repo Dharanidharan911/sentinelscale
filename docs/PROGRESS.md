@@ -1,7 +1,7 @@
 # Implementation Progress — SentinelScale
 
-> Last updated: 2026-09-03
-> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (146 passed, 1 skipped)
+> Last updated: 2026-09-04
+> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (155 passed, 1 skipped)
 
 ---
 
@@ -17,8 +17,9 @@
 | Phase 3A | Deterministic Decision Engine & Policy Guardrails | ✅ COMPLETE |
 | Phase 3B | Decision Context Aggregation & Multi-Module Orchestration | ✅ COMPLETE |
 | Phase 4A | Continuous Observation Scheduler (Observation-Only) | ✅ COMPLETE |
-| **Phase 4B** | **Decision History & Audit Persistence (SQLite)** | **✅ COMPLETE** |
-| Phase 4C+ | Metrics exposition, live shadow harnesses, reporting dashboard | ❌ NOT STARTED |
+| Phase 4B | Decision History & Audit Persistence (SQLite) | ✅ COMPLETE |
+| **Phase 4C** | **Operational Metrics & Prometheus Exposition (/metrics)** | **✅ COMPLETE** |
+| Phase 4D+ | Live shadow harnesses, reporting dashboard, autonomous actuation | ❌ NOT STARTED |
 
 ---
 
@@ -34,8 +35,8 @@ python run_tests.py
 | Demo API | 9 passed | ✅ |
 | Traffic Intelligence | 18 passed | ✅ |
 | Demand Intelligence | 5 passed | ✅ |
-| Platform & Decision Engine | 114 passed, 1 skipped | ✅ |
-| **Total** | **146 tests** | **✅ ALL PASSING** |
+| Platform & Decision Engine | 123 passed, 1 skipped | ✅ |
+| **Total** | **155 tests** | **✅ ALL PASSING** |
 
 The 1 skipped test is `test_live_prometheus_integration_optional` — intentionally skipped when live Prometheus is not running locally.
 
@@ -90,11 +91,19 @@ The 1 skipped test is `test_live_prometheus_integration_optional` — intentiona
 - [x] `services/platform/app/api/v1/endpoints.py` — Added read-only history endpoints (`GET /api/v1/history`, `GET /api/v1/history/stats`, `GET /api/v1/history/{id}`).
 - [x] `services/platform/tests/test_decision_history.py` — 10 unit and API tests validating store initialization, record fidelity, failed cycle diagnostics, trace filtering, ordering, pagination, retention cleanup, scheduler error isolation, and HTTP endpoints.
 
+### Phase 4C: Operational Metrics & Prometheus Exposition
+- [x] `services/platform/app/services/metrics/base.py` — `MetricsCollector` abstract interface.
+- [x] `services/platform/app/services/metrics/prometheus.py` — Pure-Python `PrometheusMetricsService` managing counters, gauges, histograms (latency buckets), and low-cardinality label normalization.
+- [x] `services/platform/app/services/metrics/factory.py` — Factory returning singleton `PrometheusMetricsService`.
+- [x] `services/platform/app/services/observation_scheduler.py` — Integrated metric recording for evaluation successes, failures, scheduler skips, history writes, and retention cleanups.
+- [x] `services/platform/app/main.py` — Added `GET /metrics` returning Prometheus text format (`text/plain; version=0.0.4; charset=utf-8`).
+- [x] `services/platform/tests/test_metrics.py` — 9 unit and API tests covering metric initialization, text formatting, counters, gauges, signed HPA divergence, scheduler health, error normalization, and HTTP endpoint.
+
 ---
 
 ## Safety Invariants Preserved
-1. `dry_run = True` is enforced unconditionally in `ScalingDecision` and preserved in history.
+1. `dry_run = True` is enforced unconditionally in `ScalingDecision` and preserved across history and metrics.
 2. `shadow_mode = True` enables parallel baseline HPA evaluation without mutating infrastructure.
 3. Zero autonomous cluster mutation calls or `kubectl` subprocess executions.
-4. All cross-service communication is mediated through validated JSON Schemas.
-5. Observation history persistence failure does not crash the continuous scheduler loop.
+4. `GET /metrics` is strictly read-only; never triggers evaluations, queries upstream services, or mutates state.
+5. All metric labels are strictly bounded with zero high-cardinality parameters (no `trace_id`, no `event_id`, no raw error messages).

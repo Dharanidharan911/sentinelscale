@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.endpoints import router as v1_router
 from app.config.settings import settings
 from app.logging import StructuredLoggingMiddleware
+from app.services.metrics.factory import get_metrics_service
 from app.services.observation_scheduler import get_observation_scheduler
 
 
@@ -64,7 +65,22 @@ async def version():
         "autonomous_actions_enabled": settings.SENTINEL_AUTONOMOUS_ACTIONS_ENABLED,
         "observation_scheduler_enabled": settings.OBSERVATION_SCHEDULER_ENABLED,
         "observation_interval_seconds": settings.OBSERVATION_INTERVAL_SECONDS,
+        "metrics_enabled": settings.METRICS_ENABLED,
     }
+
+
+@app.get("/metrics", tags=["Observability"])
+async def metrics():
+    """
+    Expose operational Prometheus metrics in standard text exposition format (v0.0.4).
+    Purely read-only; does not trigger evaluations, query upstreams, or mutate resources.
+    """
+    if not settings.METRICS_ENABLED:
+        return Response(content="# Metrics disabled\n", media_type="text/plain; version=0.0.4; charset=utf-8")
+
+    metrics_service = get_metrics_service()
+    content = metrics_service.export_prometheus_text()
+    return Response(content=content, media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
 app.include_router(v1_router, prefix="/api/v1")

@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     DECISION_HISTORY_DB_PATH: str = "./data/sentinelscale_history.db"
     DECISION_HISTORY_RETENTION_DAYS: int = Field(default=7, ge=1, description="Observation history retention period in days.")
 
+    # Operational Metrics & Observability Configuration (Phase 4C)
+    METRICS_ENABLED: bool = True
+
     @field_validator("OBSERVATION_INTERVAL_SECONDS")
     @classmethod
     def validate_interval(cls, v: float) -> float:
