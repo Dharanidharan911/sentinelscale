@@ -11,7 +11,7 @@ client = TestClient(app)
 
 class TestInsufficientDataErrors:
     def test_single_inline_observation_returns_422(self):
-        """One observation is below MIN_OBSERVATIONS_FOR_FORECAST — must be 422, not zero RPS."""
+        """One observation is below settings.FORECAST_MIN_OBSERVATIONS — must be 422, not zero RPS."""
         payload = {
             "forecast_horizon_seconds": 300,
             "observations": [
@@ -56,7 +56,7 @@ class TestInvalidObservationErrors:
 
 class TestSuccessfulForecast:
     def test_two_observations_minimum_produces_forecast(self):
-        """Exactly MIN_OBSERVATIONS_FOR_FORECAST observations should succeed."""
+        """Exactly settings.FORECAST_MIN_OBSERVATIONS observations should succeed."""
         payload = {
             "forecast_horizon_seconds": 300,
             "observations": [

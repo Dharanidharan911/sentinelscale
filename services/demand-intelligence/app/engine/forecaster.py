@@ -28,32 +28,11 @@ from app.engine.preprocessor import preprocess_observations, compute_statistics
 from app.errors import InsufficientDataError, ForecastCalculationError
 from app.config.settings import settings
 
-# Minimum observations required to produce a forecast with any meaningful confidence.
-MIN_OBSERVATIONS_FOR_FORECAST = 2
-
-# Minimum observations before we apply trend extrapolation.
-# With fewer samples the trend estimate is too noisy to trust.
-MIN_OBSERVATIONS_FOR_TREND = 5
-
-# Weight decay per step (oldest gets lowest weight). Must be in (0, 1).
-RECENCY_WEIGHT_DECAY = 0.85
-RECENCY_REFERENCE_INTERVAL_SECONDS = 30.0
-
-# Minimum time span (seconds) before we apply trend extrapolation.
-MIN_TIME_SPAN_FOR_TREND = 120.0
-
-# Maximum absolute trend slope (RPS/second) to prevent explosive projections.
-MAX_TREND_SLOPE = 10.0
-
-# Confidence scaling constants
-_SAMPLE_CONFIDENCE_SCALE = 30   # ~30 samples → full sample contribution
-_VARIANCE_CONFIDENCE_SCALE = 0.15  # 15% CV → zero variance contribution
-
-# Prediction interval half-width multiplier (±1.5 std-dev ≈ ~87% coverage)
-INTERVAL_HALF_WIDTH_SIGMA = 1.5
-
-
-def _weighted_mean(observations: List[DemandObservation], decay: float = RECENCY_WEIGHT_DECAY, ref_interval: float = RECENCY_REFERENCE_INTERVAL_SECONDS) -> float:
+def _weighted_mean(
+    observations: List[DemandObservation], 
+    decay: float | None = None, 
+    ref_interval: float | None = None
+) -> float:
     """
     Time-aware recency-weighted mean. The most recent value has weight 1.0,
     and older values decay exponentially based on the time difference.
@@ -61,6 +40,9 @@ def _weighted_mean(observations: List[DemandObservation], decay: float = RECENCY
     if not observations:
         return 0.0
         
+    decay = decay if decay is not None else settings.FORECAST_RECENCY_WEIGHT_DECAY
+    ref_interval = ref_interval if ref_interval is not None else settings.FORECAST_RECENCY_REFERENCE_INTERVAL_SECONDS
+
     t_last = observations[-1].timestamp
     total_weight = 0.0
     weighted_sum = 0.0
@@ -90,13 +72,13 @@ def _compute_confidence(
     2. Variance confidence: lower coefficient of variation → higher confidence.
     3. Horizon confidence: penalizes forecasting far beyond historical time span.
     """
-    # Sample confidence: sigmoid-like, saturates at _SAMPLE_CONFIDENCE_SCALE samples
-    sample_conf = 1.0 - math.exp(-n_samples / _SAMPLE_CONFIDENCE_SCALE)
+    # Sample confidence: sigmoid-like, saturates at FORECAST_SAMPLE_CONFIDENCE_SCALE samples
+    sample_conf = 1.0 - math.exp(-n_samples / settings.FORECAST_SAMPLE_CONFIDENCE_SCALE)
 
     # Variance confidence: based on coefficient of variation (CV = std/mean)
     if mean_rps > 0:
         cv = std_dev_rps / mean_rps
-        variance_conf = math.exp(-cv / _VARIANCE_CONFIDENCE_SCALE)
+        variance_conf = math.exp(-cv / settings.FORECAST_VARIANCE_CONFIDENCE_SCALE)
     else:
         variance_conf = 0.1  # very low confidence when mean is zero
         
@@ -122,8 +104,10 @@ def _project_demand(
     window to trust it. The slope is capped to prevent explosive projections.
     Returns a value clamped to >= 0.
     """
-    if n_samples >= MIN_OBSERVATIONS_FOR_TREND and time_span >= MIN_TIME_SPAN_FOR_TREND:
-        safe_slope = max(-MAX_TREND_SLOPE, min(MAX_TREND_SLOPE, trend_slope))
+    if (n_samples >= settings.FORECAST_MIN_OBSERVATIONS_FOR_TREND and 
+        time_span >= settings.FORECAST_MIN_TIME_SPAN_FOR_TREND):
+        max_slope = settings.FORECAST_MAX_TREND_SLOPE
+        safe_slope = max(-max_slope, min(max_slope, trend_slope))
         projected = weighted_mean_rps + safe_slope * horizon_seconds
     else:
         projected = weighted_mean_rps  # no trend extrapolation with sparse data
@@ -156,9 +140,9 @@ def produce_forecast(
     # Step 1: Preprocess (validate, sort, deduplicate)
     cleaned = preprocess_observations(observations)
 
-    if len(cleaned) < MIN_OBSERVATIONS_FOR_FORECAST:
+    if len(cleaned) < settings.FORECAST_MIN_OBSERVATIONS:
         raise InsufficientDataError(
-            required=MIN_OBSERVATIONS_FOR_FORECAST,
+            required=settings.FORECAST_MIN_OBSERVATIONS,
             available=len(cleaned),
         )
 
@@ -176,7 +160,7 @@ def produce_forecast(
     predicted = _project_demand(w_mean, trend_slope, forecast_horizon_seconds, n, time_span)
 
     # Step 5: Prediction interval (based on historical std-dev)
-    half_width = INTERVAL_HALF_WIDTH_SIGMA * std_dev_rps
+    half_width = settings.FORECAST_INTERVAL_HALF_WIDTH_SIGMA * std_dev_rps
     lower = max(0.0, predicted - half_width)
     upper = predicted + half_width
 

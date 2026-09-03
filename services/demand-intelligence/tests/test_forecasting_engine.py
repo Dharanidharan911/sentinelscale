@@ -3,7 +3,7 @@ SentinelScale — Demand Intelligence — Test: Forecasting Engine
 """
 import pytest
 from app.models.demand import DemandObservation
-from app.engine.forecaster import produce_forecast, MIN_OBSERVATIONS_FOR_FORECAST
+from app.engine.forecaster import produce_forecast
 from app.errors import InsufficientDataError, InvalidObservationError
 
 
@@ -96,9 +96,10 @@ class TestForecastingEngineTrend:
 
 class TestForecastingEngineInsufficientData:
     def test_single_observation_raises_insufficient_data(self):
+        from app.config.settings import settings
         with pytest.raises(InsufficientDataError) as exc_info:
             produce_forecast([obs(1_700_000_000.0, 100.0)], 300)
-        assert exc_info.value.required == MIN_OBSERVATIONS_FOR_FORECAST
+        assert exc_info.value.required == settings.FORECAST_MIN_OBSERVATIONS
         assert exc_info.value.available == 1
 
     def test_empty_observations_raises_insufficient_data(self):

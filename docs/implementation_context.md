@@ -58,7 +58,7 @@ API Traffic → Traffic Intelligence → Demand Intelligence → Resource Intell
 | 2 | DemandObservation domain model | ✅ Done |
 | 3 | Historical data window via MockDemandProvider | ✅ Done |
 | 4 | Forecast Quality Hardening (irregular intervals, bounds) | ✅ Done |
-| 5 | Deterministic baseline forecast (RWMA + trend) | ✅ Done |
+| 5 | Configurable Forecasting (Settings migration) | ✅ Done |
 | 6 | Trend detection (linear regression slope) | ✅ Done |
 | 7 | Forecasting engine separation | ✅ Done |
 | 8 | Forecast horizon support | ✅ Done |
