@@ -145,3 +145,53 @@ class TestForecastingEngineContractFields:
     def test_horizon_propagated(self):
         forecast = produce_forecast(stable_observations(), 600)
         assert forecast.forecast_horizon_seconds == 600
+
+
+class TestForecastingEngineQualityHardening:
+    def test_short_time_span_disables_trend(self):
+        # 5 observations, but all within 10 seconds (MIN_TIME_SPAN_FOR_TREND = 120)
+        data = [obs(1_700_000_000.0 + i * 2, 500.0 + i * 50) for i in range(5)]
+        forecast = produce_forecast(data, 300)
+        # Should not project the steep trend (which would be +25 RPS/sec * 300s = +7500)
+        # Prediction should just be the weighted mean, around 600
+        assert forecast.predicted_legitimate_rps < 1000.0
+
+    def test_irregular_intervals_handled_gracefully(self):
+        # A long gap should heavily discount the older data
+        data = [
+            obs(1_700_000_000.0, 1000.0), # very old, high demand
+            obs(1_700_000_300.0, 100.0),  # recent, low demand
+            obs(1_700_000_330.0, 100.0),
+        ]
+        forecast = produce_forecast(data, 300)
+        # The 1000 RPS observation is 10 intervals (300s) old. Weight = 0.85^10 = 0.19.
+        # The recent ones dominate.
+        assert forecast.predicted_legitimate_rps < 250.0
+
+    def test_horizon_confidence_penalty(self):
+        # 20 observations over 10 minutes (span = 570s)
+        data = stable_observations(n=20, start_ts=1_700_000_000.0)
+
+        # Predict 5 minutes (300s) -> horizon_ratio = 570/300 = 1.9 -> no penalty
+        f_short = produce_forecast(data, 300)
+
+        # Predict 2 hours (7200s) -> horizon_ratio = 570/7200 = 0.079 -> large penalty
+        f_long = produce_forecast(data, 7200)
+
+        assert f_short.confidence > f_long.confidence
+
+    def test_trend_slope_capping(self):
+        # observations spread over 150 seconds, satisfying MIN_TIME_SPAN_FOR_TREND
+        # but with an absurdly huge slope
+        data = [
+            obs(1_700_000_000.0, 100.0),
+            obs(1_700_000_030.0, 100.0),
+            obs(1_700_000_060.0, 100.0),
+            obs(1_700_000_090.0, 100.0),
+            obs(1_700_000_150.0, 10000.0),
+        ]
+        forecast = produce_forecast(data, 300)
+        # Uncapped slope would be around (10000/150) = 66 RPS/s. Over 300s = 20,000.
+        # Max slope is 10.0, so projected increase is 10.0 * 300 = 3000.
+        # w_mean is around 3100. Total expected is ~6100.
+        assert forecast.predicted_legitimate_rps < 6500.0

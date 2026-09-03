@@ -37,6 +37,13 @@ MIN_OBSERVATIONS_FOR_TREND = 5
 
 # Weight decay per step (oldest gets lowest weight). Must be in (0, 1).
 RECENCY_WEIGHT_DECAY = 0.85
+RECENCY_REFERENCE_INTERVAL_SECONDS = 30.0
+
+# Minimum time span (seconds) before we apply trend extrapolation.
+MIN_TIME_SPAN_FOR_TREND = 120.0
+
+# Maximum absolute trend slope (RPS/second) to prevent explosive projections.
+MAX_TREND_SLOPE = 10.0
 
 # Confidence scaling constants
 _SAMPLE_CONFIDENCE_SCALE = 30   # ~30 samples → full sample contribution
@@ -46,18 +53,25 @@ _VARIANCE_CONFIDENCE_SCALE = 0.15  # 15% CV → zero variance contribution
 INTERVAL_HALF_WIDTH_SIGMA = 1.5
 
 
-def _weighted_mean(values: List[float], decay: float = RECENCY_WEIGHT_DECAY) -> float:
+def _weighted_mean(observations: List[DemandObservation], decay: float = RECENCY_WEIGHT_DECAY, ref_interval: float = RECENCY_REFERENCE_INTERVAL_SECONDS) -> float:
     """
-    Recency-weighted mean. The most recent value has weight 1.0,
-    each predecessor is multiplied by `decay`.
+    Time-aware recency-weighted mean. The most recent value has weight 1.0,
+    and older values decay exponentially based on the time difference.
     """
-    n = len(values)
+    if not observations:
+        return 0.0
+        
+    t_last = observations[-1].timestamp
     total_weight = 0.0
     weighted_sum = 0.0
-    for i, v in enumerate(values):
-        weight = decay ** (n - 1 - i)
-        weighted_sum += v * weight
+    
+    for obs in observations:
+        # Number of reference intervals in the past
+        intervals_ago = max(0.0, (t_last - obs.timestamp) / ref_interval)
+        weight = decay ** intervals_ago
+        weighted_sum += obs.rps * weight
         total_weight += weight
+        
     return weighted_sum / total_weight if total_weight > 0 else 0.0
 
 
@@ -65,6 +79,8 @@ def _compute_confidence(
     n_samples: int,
     mean_rps: float,
     std_dev_rps: float,
+    time_span: float,
+    horizon: int
 ) -> float:
     """
     Compute a [0.0, 1.0] confidence score.
@@ -72,7 +88,7 @@ def _compute_confidence(
     Factors:
     1. Sample confidence: saturates towards 1.0 as sample count grows.
     2. Variance confidence: lower coefficient of variation → higher confidence.
-       If mean is zero we assume low confidence (can't assess relative variance).
+    3. Horizon confidence: penalizes forecasting far beyond historical time span.
     """
     # Sample confidence: sigmoid-like, saturates at _SAMPLE_CONFIDENCE_SCALE samples
     sample_conf = 1.0 - math.exp(-n_samples / _SAMPLE_CONFIDENCE_SCALE)
@@ -83,9 +99,13 @@ def _compute_confidence(
         variance_conf = math.exp(-cv / _VARIANCE_CONFIDENCE_SCALE)
     else:
         variance_conf = 0.1  # very low confidence when mean is zero
+        
+    # Horizon confidence: soft penalty if time_span is short relative to horizon
+    horizon_ratio = time_span / float(horizon) if horizon > 0 else 1.0
+    horizon_conf = min(1.0, horizon_ratio * 1.5)
 
-    # Combined: geometric mean so both factors contribute multiplicatively
-    confidence = math.sqrt(sample_conf * variance_conf)
+    # Combined: geometric mean of all factors
+    confidence = (sample_conf * variance_conf * horizon_conf) ** (1/3)
     return round(min(1.0, max(0.0, confidence)), 4)
 
 
@@ -94,14 +114,17 @@ def _project_demand(
     trend_slope: float,
     horizon_seconds: int,
     n_samples: int,
+    time_span: float,
 ) -> float:
     """
     Project demand forward by `horizon_seconds` using the current trend slope.
-    Trend is only applied when there are enough samples to trust it.
+    Trend is only applied when there are enough samples spanning a sufficient time
+    window to trust it. The slope is capped to prevent explosive projections.
     Returns a value clamped to >= 0.
     """
-    if n_samples >= MIN_OBSERVATIONS_FOR_TREND:
-        projected = weighted_mean_rps + trend_slope * horizon_seconds
+    if n_samples >= MIN_OBSERVATIONS_FOR_TREND and time_span >= MIN_TIME_SPAN_FOR_TREND:
+        safe_slope = max(-MAX_TREND_SLOPE, min(MAX_TREND_SLOPE, trend_slope))
+        projected = weighted_mean_rps + safe_slope * horizon_seconds
     else:
         projected = weighted_mean_rps  # no trend extrapolation with sparse data
 
@@ -139,16 +162,18 @@ def produce_forecast(
             available=len(cleaned),
         )
 
+    # Calculate total time span of observations
+    time_span = cleaned[-1].timestamp - cleaned[0].timestamp
+
     # Step 2: Compute statistics on clean observations
     mean_rps, std_dev_rps, trend_slope = compute_statistics(cleaned)
 
-    # Step 3: Weighted mean (recency-biased point estimate)
-    values = [o.rps for o in cleaned]
-    w_mean = _weighted_mean(values)
+    # Step 3: Weighted mean (time-aware recency-biased point estimate)
+    w_mean = _weighted_mean(cleaned)
 
-    # Step 4: Project forward using trend (if enough data)
+    # Step 4: Project forward using trend (if enough data and time span)
     n = len(cleaned)
-    predicted = _project_demand(w_mean, trend_slope, forecast_horizon_seconds, n)
+    predicted = _project_demand(w_mean, trend_slope, forecast_horizon_seconds, n, time_span)
 
     # Step 5: Prediction interval (based on historical std-dev)
     half_width = INTERVAL_HALF_WIDTH_SIGMA * std_dev_rps
@@ -160,7 +185,7 @@ def produce_forecast(
     upper = max(upper, predicted)
 
     # Step 6: Confidence
-    confidence = _compute_confidence(n, mean_rps, std_dev_rps)
+    confidence = _compute_confidence(n, mean_rps, std_dev_rps, time_span, forecast_horizon_seconds)
 
     # Step 7: Build the frozen contract object
     effective_trace_id = trace_id or f"trace-{uuid.uuid4().hex[:16]}"

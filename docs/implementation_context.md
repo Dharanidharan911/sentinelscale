@@ -57,7 +57,7 @@ API Traffic → Traffic Intelligence → Demand Intelligence → Resource Intell
 | 1 | Provider abstraction | ✅ Done |
 | 2 | DemandObservation domain model | ✅ Done |
 | 3 | Historical data window via MockDemandProvider | ✅ Done |
-| 4 | Preprocessing: sort, deduplicate, validate | ✅ Done |
+| 4 | Forecast Quality Hardening (irregular intervals, bounds) | ✅ Done |
 | 5 | Deterministic baseline forecast (RWMA + trend) | ✅ Done |
 | 6 | Trend detection (linear regression slope) | ✅ Done |
 | 7 | Forecasting engine separation | ✅ Done |
@@ -126,15 +126,15 @@ services/demand-intelligence/
 **Model:** `demand-v1` — Recency-Weighted Moving Average + Linear Trend Projection
 
 1. Validate/preprocess observations (sort oldest→newest, deduplicate, reject negative RPS)
-2. Compute weighted mean (decay=0.85, most recent = highest weight)
+2. Compute time-aware exponentially weighted mean (decay=0.85 per 30s)
 3. Compute linear regression slope over full series (trend)
-4. Project forward: `predicted = weighted_mean + slope × horizon_seconds` (if ≥5 observations)
+4. Project forward: `predicted = weighted_mean + slope × horizon_seconds` (if ≥5 observations AND time_span ≥ 120s, slope capped to ±10.0 RPS/s)
 5. Prediction interval: `±1.5 × std_dev` around point estimate
-6. Confidence: geometric mean of sample-count confidence + variance confidence
+6. Confidence: geometric mean of sample-count confidence, variance confidence, and horizon ratio
 7. Build `DemandForecast` with frozen contract fields
 
 **Minimum observations:** 2 (raises `InsufficientDataError` if fewer)
-**Trend activation threshold:** 5 observations
+**Trend activation threshold:** 5 observations AND 120s time span
 
 ---
 

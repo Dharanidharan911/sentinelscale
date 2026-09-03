@@ -1,0 +1,9 @@
+- [x] **Phase 4: Forecast Quality Hardening**
+  - [x] Update `_weighted_mean` to use time-based exponential decay instead of index-based decay to handle irregular time intervals.
+  - [x] Add a `MIN_TIME_SPAN_FOR_TREND` guard (e.g., 120s) before applying linear regression trend extrapolation to prevent wild spikes from clustered data.
+  - [x] Update `_compute_confidence` to penalize confidence if the historical `time_span` is significantly shorter than the `forecast_horizon_seconds`.
+  - [x] Add explicit limits to the maximum positive/negative trend slope to prevent explosive projections from noisy data.
+  - [x] Update `test_forecasting_engine.py` to assert correct behavior under irregular intervals, short time spans, and long horizons.
+  - [ ] Update `docs/implementation_context.md`.
+  - [ ] Commit with message `feat(demand-intelligence): harden forecast engine for irregular data (Phase 4)`.
+  - [ ] Create annotated tag `member2-v1.1-forecast-hardening`.
