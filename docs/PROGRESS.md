@@ -1,7 +1,7 @@
 # Implementation Progress — SentinelScale
 
 > Last updated: 2026-09-03
-> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (127 passed, 1 skipped)
+> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (136 passed, 1 skipped)
 
 ---
 
@@ -15,8 +15,9 @@
 | Phase 2A | Kubernetes resource telemetry | ✅ COMPLETE |
 | Phase 2B | Hybrid Prometheus + Kubernetes aggregation | ✅ COMPLETE |
 | Phase 3A | Deterministic Decision Engine & Policy Guardrails | ✅ COMPLETE |
-| **Phase 3B** | **Decision Context Aggregation & Multi-Module Orchestration** | **✅ COMPLETE** |
-| Phase 4+ | Autonomous actuation, live shadow-mode evaluation harnesses | ❌ NOT STARTED |
+| Phase 3B | Decision Context Aggregation & Multi-Module Orchestration | ✅ COMPLETE |
+| **Phase 4A** | **Continuous Observation Scheduler (Observation-Only)** | **✅ COMPLETE** |
+| Phase 4B+ | Historical observation store, metrics exposition, live shadow harnesses | ❌ NOT STARTED |
 
 ---
 
@@ -32,8 +33,8 @@ python run_tests.py
 | Demo API | 9 passed | ✅ |
 | Traffic Intelligence | 18 passed | ✅ |
 | Demand Intelligence | 5 passed | ✅ |
-| Platform & Decision Engine | 95 passed, 1 skipped | ✅ |
-| **Total** | **127 tests** | **✅ ALL PASSING** |
+| Platform & Decision Engine | 104 passed, 1 skipped | ✅ |
+| **Total** | **136 tests** | **✅ ALL PASSING** |
 
 The 1 skipped test is `test_live_prometheus_integration_optional` — intentionally skipped when live Prometheus is not running locally.
 
@@ -72,8 +73,12 @@ The 1 skipped test is `test_live_prometheus_integration_optional` — intentiona
 - [x] `services/platform/app/clients/demand_client.py` — Async HTTP client for Module 2 (`POST /api/v1/demand/forecast`) with error handling, logging, and trace propagation
 - [x] `services/platform/app/services/context_aggregator.py` — `ContextAggregatorService` concurrently collecting TrafficAssessment, DemandForecast, and ResourceState into `DecisionContext` and evaluating `ScalingDecision`
 - [x] `services/platform/app/api/v1/endpoints.py` — Added `POST /api/v1/decision/orchestrate` and `POST /api/v1/decision/aggregate` while preserving backward compatibility on `POST /api/v1/decision/evaluate`
-- [x] `services/platform/tests/test_context_aggregator.py` — Comprehensive unit, concurrency, trace propagation, failure handling, and API route tests
-- [x] `services/platform/tests/test_pre_3b_integration.py` — End-to-end multi-module semantic scenario tests
+
+### Phase 4A: Continuous Observation Scheduler
+- [x] `services/platform/app/services/observation_scheduler.py` — `ObservationSchedulerService` providing periodic, non-overlapping (`asyncio.Lock` single-flight guard), failure-isolated evaluation cycles.
+- [x] `services/platform/app/config/settings.py` — Added `OBSERVATION_SCHEDULER_ENABLED`, `OBSERVATION_INTERVAL_SECONDS` (with strictly positive validation), `OBSERVATION_TARGET_NAMESPACE`, `OBSERVATION_TARGET_WORKLOAD`, and `OBSERVATION_EVALUATION_TIMEOUT_SECONDS`.
+- [x] `services/platform/app/main.py` — Integrated scheduler lifecycle via FastAPI `lifespan` context manager.
+- [x] `services/platform/tests/test_observation_scheduler.py` — 9 focused unit tests covering configuration, start/stop lifecycle, single-flight non-overlap, failure recovery, unique trace ID generation, timeout protection, and zero-actuation safety invariant.
 
 ---
 

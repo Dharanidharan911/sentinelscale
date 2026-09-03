@@ -1,13 +1,31 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.endpoints import router as v1_router
 from app.config.settings import settings
 from app.logging import StructuredLoggingMiddleware
+from app.services.observation_scheduler import get_observation_scheduler
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI application lifespan managing background ObservationScheduler lifecycle."""
+    scheduler = None
+    if settings.OBSERVATION_SCHEDULER_ENABLED:
+        scheduler = get_observation_scheduler()
+        await scheduler.start()
+    try:
+        yield
+    finally:
+        if scheduler:
+            await scheduler.stop()
+
 
 app = FastAPI(
     title="SentinelScale — Platform & Decision Service",
     description="Module 3: Resource state observation, baseline HPA comparison, and policy-guarded decision engine.",
     version=settings.SERVICE_VERSION,
+    lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -44,6 +62,8 @@ async def version():
         "dry_run": settings.SENTINEL_DRY_RUN,
         "shadow_mode": settings.SENTINEL_SHADOW_MODE,
         "autonomous_actions_enabled": settings.SENTINEL_AUTONOMOUS_ACTIONS_ENABLED,
+        "observation_scheduler_enabled": settings.OBSERVATION_SCHEDULER_ENABLED,
+        "observation_interval_seconds": settings.OBSERVATION_INTERVAL_SECONDS,
     }
 
 

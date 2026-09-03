@@ -1,4 +1,5 @@
 from typing import Optional
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -44,6 +45,22 @@ class Settings(BaseSettings):
     DEFAULT_BASELINE_CPU_REQUESTED_CORES: float = 4.0
     DEFAULT_BASELINE_MEMORY_LIMIT_BYTES: int = 8 * 1024 * 1024 * 1024       # 8 GiB
     DEFAULT_BASELINE_MEMORY_REQUESTED_BYTES: int = 4 * 1024 * 1024 * 1024   # 4 GiB
+
+    # Continuous Observation Scheduler Configuration (Phase 4A)
+    OBSERVATION_SCHEDULER_ENABLED: bool = False
+    OBSERVATION_INTERVAL_SECONDS: float = Field(default=15.0, gt=0.0, description="Periodic observation interval in seconds.")
+    OBSERVATION_TARGET_NAMESPACE: str = "sentinelscale"
+    OBSERVATION_TARGET_WORKLOAD: str = "demo-api"
+    OBSERVATION_WINDOW_SECONDS: int = Field(default=60, ge=1, description="Observation time window for Traffic Intelligence.")
+    OBSERVATION_FORECAST_HORIZON_SECONDS: int = Field(default=300, ge=1, description="Forecasting horizon for Demand Intelligence.")
+    OBSERVATION_EVALUATION_TIMEOUT_SECONDS: float = Field(default=10.0, gt=0.0, description="Max execution timeout per scheduled evaluation.")
+
+    @field_validator("OBSERVATION_INTERVAL_SECONDS")
+    @classmethod
+    def validate_interval(cls, v: float) -> float:
+        if v <= 0:
+            raise ValueError("OBSERVATION_INTERVAL_SECONDS must be strictly positive.")
+        return v
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
