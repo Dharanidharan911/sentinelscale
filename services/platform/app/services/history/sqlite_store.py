@@ -206,6 +206,31 @@ class SQLiteDecisionHistoryStore(DecisionHistoryStore):
             cursor = conn.execute(query, tuple(params))
             return [self._row_to_model(r) for r in cursor.fetchall()]
 
+    def get_observations_in_range(
+        self,
+        start_time: str,
+        end_time: str,
+        success: Optional[bool] = None,
+        action: Optional[str] = None,
+    ) -> List[StoredObservation]:
+        query = "SELECT * FROM decision_history WHERE timestamp >= ? AND timestamp <= ?"
+        params = [start_time, end_time]
+
+        if success is not None:
+            query += " AND success = ?"
+            params.append(1 if success else 0)
+
+        if action is not None:
+            query += " AND action = ?"
+            params.append(action)
+
+        query += " ORDER BY timestamp ASC;"
+
+        with self._lock:
+            conn = self._get_connection()
+            cursor = conn.execute(query, tuple(params))
+            return [self._row_to_model(r) for r in cursor.fetchall()]
+
     def cleanup_old_observations(self, retention_days: int) -> int:
         cutoff_dt = datetime.now(timezone.utc) - timedelta(days=retention_days)
         cutoff_iso = cutoff_dt.isoformat()

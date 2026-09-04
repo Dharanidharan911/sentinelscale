@@ -5,11 +5,14 @@ from app.config.settings import settings
 from app.models.context import DecisionContext, PolicyOverrides
 from app.models.decision import ScalingDecision
 from app.models.history import HistoryStats, StoredObservation
+from app.models.intelligence import HistoricalDivergence, HistoricalSummary, HistoricalTrends
 from app.models.resource import ResourceState
 from app.services.context_aggregator import AggregationError, ContextAggregatorService
 from app.services.decision_engine import DecisionEngine
 from app.services.history.base import DecisionHistoryStore
 from app.services.history.factory import get_history_store
+from app.services.intelligence.base import HistoricalIntelligenceService
+from app.services.intelligence.factory import get_historical_intelligence_service
 from app.services.resource_observer import ResourceObserverService
 from app.services.telemetry.base import ResourceTelemetryProvider, TelemetryProviderError
 from app.services.telemetry.factory import get_telemetry_provider
@@ -196,3 +199,67 @@ async def get_history_item(
     if not observation:
         raise HTTPException(status_code=404, detail=f"Observation '{observation_id}' not found.")
     return observation
+
+
+# ==============================================================================
+# Phase 5A: Read-Only Historical Intelligence Foundation Endpoints
+# ==============================================================================
+
+def get_historical_intelligence() -> HistoricalIntelligenceService:
+    return get_historical_intelligence_service()
+
+
+@router.get("/intelligence/history/summary", response_model=HistoricalSummary)
+async def get_history_summary(
+    window: Optional[str] = Query(default=None, description="Pre-defined time window (5m, 15m, 1h, 6h, 24h, 7d)."),
+    start_time: Optional[str] = Query(default=None, description="ISO-8601 start timestamp for custom range."),
+    end_time: Optional[str] = Query(default=None, description="ISO-8601 end timestamp for custom range."),
+    service: HistoricalIntelligenceService = Depends(get_historical_intelligence),
+) -> HistoricalSummary:
+    """
+    Retrieve comprehensive statistical summary of historical observations,
+    scaling actions, demand trends, traffic risk, and baseline HPA divergence.
+    """
+    try:
+        return service.get_summary(window=window, start_time=start_time, end_time=end_time)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err)) from val_err
+
+
+@router.get("/intelligence/history/trends", response_model=HistoricalTrends)
+async def get_history_trends(
+    window: Optional[str] = Query(default=None, description="Pre-defined time window (5m, 15m, 1h, 6h, 24h, 7d)."),
+    start_time: Optional[str] = Query(default=None, description="ISO-8601 start timestamp for custom range."),
+    end_time: Optional[str] = Query(default=None, description="ISO-8601 end timestamp for custom range."),
+    bucket_seconds: Optional[int] = Query(default=None, ge=1, description="Optional custom bucket duration in seconds."),
+    service: HistoricalIntelligenceService = Depends(get_historical_intelligence),
+) -> HistoricalTrends:
+    """
+    Retrieve chronological time-bucketed historical trends for metric visualization.
+    """
+    try:
+        return service.get_trends(
+            window=window,
+            start_time=start_time,
+            end_time=end_time,
+            bucket_seconds=bucket_seconds,
+        )
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err)) from val_err
+
+
+@router.get("/intelligence/history/divergence", response_model=HistoricalDivergence)
+async def get_history_divergence(
+    window: Optional[str] = Query(default=None, description="Pre-defined time window (5m, 15m, 1h, 6h, 24h, 7d)."),
+    start_time: Optional[str] = Query(default=None, description="ISO-8601 start timestamp for custom range."),
+    end_time: Optional[str] = Query(default=None, description="ISO-8601 end timestamp for custom range."),
+    service: HistoricalIntelligenceService = Depends(get_historical_intelligence),
+) -> HistoricalDivergence:
+    """
+    Retrieve detailed comparative analysis and divergence metrics between SentinelScale
+    and naive reactive HPA recommendations.
+    """
+    try:
+        return service.get_divergence(window=window, start_time=start_time, end_time=end_time)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err)) from val_err

@@ -46,6 +46,19 @@ class DecisionHistoryStore(ABC):
         pass
 
     @abstractmethod
+    def get_observations_in_range(
+        self,
+        start_time: str,
+        end_time: str,
+        success: Optional[bool] = None,
+        action: Optional[str] = None,
+    ) -> List[StoredObservation]:
+        """
+        Retrieve observation records within a timestamp range ordered chronologically (oldest first).
+        """
+        pass
+
+    @abstractmethod
     def cleanup_old_observations(self, retention_days: int) -> int:
         """
         Delete records older than retention_days. Returns the count of deleted records.
