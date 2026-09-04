@@ -139,6 +139,14 @@ sum(rate(http_requests_total{service="{target_service}"}[1m]))
 
 `{target_service}` is supplied from the request; override `PROMETHEUS_QUERY` for deployed metric names. Unreachable, malformed, or invalid telemetry returns the existing `503 provider_unavailable`; a successful empty query returns `422 insufficient_data`. Neither means zero RPS.
 
+### Confidence and Diagnostics
+
+Confidence is deterministic and combines sample count, demand variance, history
+span relative to horizon, and sampling regularity. Valid irregular sampling
+lowers confidence but remains forecastable. Service logs include the provider,
+observation count, horizon, trace ID, and processing latency; none are added to
+the frozen `DemandForecast` contract.
+
 ### Observation Validation
 
 Inline and provider observations must use finite timestamp and RPS values. A

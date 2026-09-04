@@ -256,6 +256,16 @@ After Checkpoint 3 (M3 integration is confirmed):
 
 ---
 
+## 15. Member 2 Confidence and Observability Hardening (2026-09-05)
+
+- Confidence now incorporates deterministic sampling regularity: irregular valid observations lower confidence rather than becoming invalid data.
+- Added validated `FORECAST_REGULARITY_CONFIDENCE_SCALE` with a safe default.
+- Successful forecasts emit structured diagnostics for provider, observation count, horizon, trace ID, and elapsed time; the frozen `DemandForecast` output remains unchanged.
+- Member 2 tests: `python -m pytest services/demand-intelligence/tests -q -o "pythonpath=services/demand-intelligence"` → **100 passed**.
+- Next local work is production-readiness review/documentation. TrafficAssessment ingestion remains blocked on an agreed contract-level input boundary and is not implemented through Member 1 internals.
+
+---
+
 ## 12. Engineering Rules (Do Not Violate)
 
 1. **Contracts are frozen** — never modify `contracts/**` files without team agreement

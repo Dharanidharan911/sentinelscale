@@ -62,7 +62,8 @@ def _compute_confidence(
     mean_rps: float,
     std_dev_rps: float,
     time_span: float,
-    horizon: int
+    horizon: int,
+    sampling_regularity: float = 1.0,
 ) -> float:
     """
     Compute a [0.0, 1.0] confidence score.
@@ -86,9 +87,30 @@ def _compute_confidence(
     horizon_ratio = time_span / float(horizon) if horizon > 0 else 1.0
     horizon_conf = min(1.0, horizon_ratio * 1.5)
 
-    # Combined: geometric mean of all factors
-    confidence = (sample_conf * variance_conf * horizon_conf) ** (1/3)
+    # Irregular but valid sampling reduces certainty rather than invalidating
+    # the data. 0 is maximally irregular; 1 is perfectly regular.
+    regularity_conf = math.exp(
+        -(1.0 - max(0.0, min(1.0, sampling_regularity)))
+        / settings.FORECAST_REGULARITY_CONFIDENCE_SCALE
+    )
+    confidence = (sample_conf * variance_conf * horizon_conf * regularity_conf) ** (1/4)
     return round(min(1.0, max(0.0, confidence)), 4)
+
+
+def _sampling_regularity(observations: List[DemandObservation]) -> float:
+    """Return a deterministic [0, 1] cadence-regularity score."""
+    if len(observations) < 3:
+        return 1.0
+    intervals = [
+        observations[index].timestamp - observations[index - 1].timestamp
+        for index in range(1, len(observations))
+    ]
+    mean_interval = sum(intervals) / len(intervals)
+    if mean_interval <= 0:
+        return 0.0
+    variance = sum((value - mean_interval) ** 2 for value in intervals) / len(intervals)
+    coefficient_of_variation = math.sqrt(variance) / mean_interval
+    return 1.0 / (1.0 + coefficient_of_variation)
 
 
 def _project_demand(
@@ -169,7 +191,10 @@ def produce_forecast(
     upper = max(upper, predicted)
 
     # Step 6: Confidence
-    confidence = _compute_confidence(n, mean_rps, std_dev_rps, time_span, forecast_horizon_seconds)
+    confidence = _compute_confidence(
+        n, mean_rps, std_dev_rps, time_span, forecast_horizon_seconds,
+        _sampling_regularity(cleaned),
+    )
 
     # Step 7: Build the frozen contract object
     effective_trace_id = trace_id or f"trace-{uuid.uuid4().hex[:16]}"

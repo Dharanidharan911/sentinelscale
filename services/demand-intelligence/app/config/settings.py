@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     PROMETHEUS_TIMEOUT_SECONDS: float = Field(default=5.0, gt=0.0)
 
     OBSERVATION_MAX_FUTURE_SKEW_SECONDS: float = Field(default=60.0, ge=0.0)
+    FORECAST_REGULARITY_CONFIDENCE_SCALE: float = Field(default=0.5, gt=0.0)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

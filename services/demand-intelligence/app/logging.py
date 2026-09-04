@@ -26,6 +26,9 @@ class JsonFormatter(logging.Formatter):
             log_data["latency_ms"] = record.latency_ms
         if hasattr(record, "status_code"):
             log_data["status_code"] = record.status_code
+        for field in ("provider", "observation_count", "forecast_horizon_seconds"):
+            if hasattr(record, field):
+                log_data[field] = getattr(record, field)
         return json.dumps(log_data)
 
 

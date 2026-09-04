@@ -6,6 +6,7 @@ The service layer is the only place that knows which provider to use.
 The forecasting engine knows nothing about providers.
 The API layer knows nothing about provider selection.
 """
+import time
 from typing import List, Optional
 
 from app.models.demand import DemandForecast, ForecastRequest, DemandObservation
@@ -15,6 +16,7 @@ from app.providers.prometheus_provider import PrometheusDemandProvider
 from app.providers.static_provider import StaticObservationProvider
 from app.engine.forecaster import produce_forecast
 from app.config.settings import settings
+from app.logging import logger
 
 
 class DemandForecastingService:
@@ -52,15 +54,27 @@ class DemandForecastingService:
             - InvalidObservationError → HTTP 422
             - ProviderUnavailableError → HTTP 503
         """
+        started = time.perf_counter()
         provider = self._select_provider(request.observations, request.target_service)
         observations: List[DemandObservation] = provider.get_observations(
             window_seconds=request.historical_window_seconds or 3600
         )
-        return produce_forecast(
+        forecast = produce_forecast(
             observations=observations,
             forecast_horizon_seconds=request.forecast_horizon_seconds,
             trace_id=request.trace_id,
         )
+        logger.info(
+            "Demand forecast generated",
+            extra={
+                "provider": provider.name,
+                "observation_count": len(observations),
+                "forecast_horizon_seconds": request.forecast_horizon_seconds,
+                "trace_id": forecast.trace_id,
+                "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
+        )
+        return forecast
 
     def _select_provider(
         self,

@@ -77,6 +77,17 @@ class TestForecastingEngineConfidence:
         f_stable = produce_forecast(stable, 300)
         assert f_stable.confidence >= f_noisy.confidence
 
+    def test_irregular_sampling_reduces_confidence_without_rejecting_data(self):
+        regular = stable_observations(n=10, rps=500.0)
+        irregular = [
+            obs(1_700_000_000.0, 500.0), obs(1_700_000_030.0, 500.0),
+            obs(1_700_000_300.0, 500.0), obs(1_700_000_330.0, 500.0),
+            obs(1_700_000_900.0, 500.0), obs(1_700_000_930.0, 500.0),
+            obs(1_700_001_500.0, 500.0), obs(1_700_001_530.0, 500.0),
+            obs(1_700_001_560.0, 500.0), obs(1_700_001_590.0, 500.0),
+        ]
+        assert produce_forecast(irregular, 300).confidence < produce_forecast(regular, 300).confidence
+
 
 class TestForecastingEngineTrend:
     def test_rising_demand_increases_predicted_rps(self):
