@@ -238,6 +238,24 @@ After Checkpoint 3 (M3 integration is confirmed):
 
 ---
 
+## 14. Member 2 Data Quality Hardening (2026-09-05)
+
+**Starting head:** `7ae3c3b33809ae040d94d43a10d4b52be122ba5e`
+**Previous stable version:** `member2-v1.3-prometheus-provider`
+**Contract:** `DemandForecast` v1.0.0 remains frozen and unchanged.
+
+- `DemandObservation` now rejects non-finite timestamps/RPS and timestamps more than the configured future clock skew.
+- `preprocess_observations` repeats those validations for provider or test inputs that bypass Pydantic, preserving defence in depth.
+- `OBSERVATION_MAX_FUTURE_SKEW_SECONDS` defaults to 60 seconds and is non-negative validated. Historical replay remains supported; no global staleness cutoff was introduced because source freshness belongs to the provider/request context.
+- Invalid observations remain explicit `InvalidObservationError` / HTTP 422 semantics. Valid 0 RPS observations still mean genuine zero demand; no-data and provider failures remain distinct.
+- Added `tests/test_data_quality.py` covering NaN, infinities, future timestamps, and bypassed model validation.
+- Focused command: `python -m pytest services/demand-intelligence/tests/test_data_quality.py services/demand-intelligence/tests/test_preprocessor.py services/demand-intelligence/tests/test_demand_observations.py -v -o "pythonpath=services/demand-intelligence"` → **33 passed**.
+- Member 2 regression: `python -m pytest services/demand-intelligence/tests -v -o "pythonpath=services/demand-intelligence"` → **99 passed**, 3 third-party deprecation warnings.
+
+**Next phase:** confidence quality / sampling-regularity semantics. Phase 20 TrafficAssessment integration remains deferred pending an agreed upstream contract boundary. The v1.3 branch and tag are not yet published to origin; an attempted push was declined because the remote has not been explicitly trusted for this session.
+
+---
+
 ## 12. Engineering Rules (Do Not Violate)
 
 1. **Contracts are frozen** — never modify `contracts/**` files without team agreement

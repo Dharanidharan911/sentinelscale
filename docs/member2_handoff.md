@@ -139,6 +139,14 @@ sum(rate(http_requests_total{service="{target_service}"}[1m]))
 
 `{target_service}` is supplied from the request; override `PROMETHEUS_QUERY` for deployed metric names. Unreachable, malformed, or invalid telemetry returns the existing `503 provider_unavailable`; a successful empty query returns `422 insufficient_data`. Neither means zero RPS.
 
+### Observation Validation
+
+Inline and provider observations must use finite timestamp and RPS values. A
+timestamp more than `OBSERVATION_MAX_FUTURE_SKEW_SECONDS` (default: 60) ahead
+of the service clock is rejected as invalid telemetry. This is a `422` invalid
+data condition, not a zero-demand signal; Member 3 should `HOLD` and inspect
+the telemetry clock/source.
+
 ---
 
 ## 7. Health / Readiness Endpoints

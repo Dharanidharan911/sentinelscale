@@ -155,6 +155,14 @@ The query must return RPS matrix samples. An empty successful response is no
 data and yields the existing insufficient-data error; unreachable or malformed
 telemetry yields `503 provider_unavailable`, never a zero-demand forecast.
 
+### Observation Quality Rules
+
+Observations must have finite, positive Unix timestamps and finite,
+non-negative RPS values. Timestamps more than 60 seconds ahead of the service
+clock are rejected by default; configure `OBSERVATION_MAX_FUTURE_SKEW_SECONDS`
+when telemetry producers have a known clock offset. These failures are invalid
+data, not legitimate zero demand.
+
 ---
 
 ## Running Tests

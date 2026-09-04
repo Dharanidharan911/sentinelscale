@@ -2,8 +2,12 @@
 SentinelScale — Demand Intelligence — Domain Models
 Module 2 public and internal data contracts.
 """
+import math
+import time
 from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
+
+from app.config.settings import settings
 
 
 class DemandObservation(BaseModel):
@@ -24,8 +28,19 @@ class DemandObservation(BaseModel):
     @field_validator("timestamp")
     @classmethod
     def timestamp_must_be_positive(cls, v: float) -> float:
+        if not math.isfinite(v):
+            raise ValueError("timestamp must be finite")
         if v <= 0:
             raise ValueError("timestamp must be a positive Unix epoch value")
+        if v > time.time() + settings.OBSERVATION_MAX_FUTURE_SKEW_SECONDS:
+            raise ValueError("timestamp is too far in the future")
+        return v
+
+    @field_validator("rps")
+    @classmethod
+    def rps_must_be_finite(cls, v: float) -> float:
+        if not math.isfinite(v):
+            raise ValueError("rps must be finite")
         return v
 
 

@@ -11,8 +11,11 @@ Preprocessing rules:
 This layer is purely functional. It does not produce forecasts.
 It does not silently discard all data and pretend demand is zero.
 """
+import math
+import time
 from typing import List, Tuple
 
+from app.config.settings import settings
 from app.models.demand import DemandObservation
 from app.errors import InvalidObservationError
 
@@ -37,7 +40,20 @@ def preprocess_observations(
         return []
 
     # Validate all observations first — fail fast on invalid data
+    latest_allowed_timestamp = time.time() + settings.OBSERVATION_MAX_FUTURE_SKEW_SECONDS
     for obs in raw:
+        if not math.isfinite(obs.timestamp) or obs.timestamp <= 0:
+            raise InvalidObservationError(
+                f"Observation timestamp is invalid: {obs.timestamp}."
+            )
+        if obs.timestamp > latest_allowed_timestamp:
+            raise InvalidObservationError(
+                f"Observation timestamp is too far in the future: {obs.timestamp}."
+            )
+        if not math.isfinite(obs.rps):
+            raise InvalidObservationError(
+                f"Observation at timestamp {obs.timestamp} has non-finite RPS: {obs.rps}."
+            )
         if obs.rps < 0:
             raise InvalidObservationError(
                 f"Observation at timestamp {obs.timestamp} has negative RPS: {obs.rps}. "
