@@ -7,6 +7,7 @@ from app.models.context import DecisionContext, PolicyOverrides
 from app.models.decision import ScalingDecision
 from app.models.history import HistoryStats, StoredObservation
 from app.models.intelligence import HistoricalDivergence, HistoricalSummary, HistoricalTrends
+from app.models.prediction import PredictiveForecast
 from app.models.resource import ResourceState
 from app.services.context_aggregator import AggregationError, ContextAggregatorService
 from app.services.decision_engine import DecisionEngine
@@ -17,7 +18,9 @@ from app.services.intelligence.base import HistoricalIntelligenceService
 from app.services.intelligence.factory import (
     get_anomaly_intelligence_service,
     get_historical_intelligence_service,
+    get_predictive_intelligence_service,
 )
+from app.services.intelligence.predictive_base import PredictiveIntelligenceService
 from app.services.resource_observer import ResourceObserverService
 from app.services.telemetry.base import ResourceTelemetryProvider, TelemetryProviderError
 from app.services.telemetry.factory import get_telemetry_provider
@@ -364,6 +367,41 @@ async def get_anomalies(
             start_time=start_time,
             end_time=end_time,
             observation_context=obs_context,
+        )
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err)) from val_err
+
+
+# ==============================================================================
+# Phase 5C: Read-Only Adaptive Predictive Intelligence Endpoints
+# ==============================================================================
+
+def get_predictive_intelligence() -> PredictiveIntelligenceService:
+    return get_predictive_intelligence_service()
+
+
+@router.get("/intelligence/predictions", response_model=PredictiveForecast)
+async def get_predictive_forecast(
+    window: Optional[str] = Query(default=None, description="Lookback window (e.g. '5m', '15m', '1h', '6h', '24h', '7d')."),
+    horizon: Optional[str] = Query(default=None, description="Forecast horizon string (e.g. '5m', '15m', '30m', '1h')."),
+    horizon_seconds: Optional[int] = Query(default=None, ge=1, description="Forecast horizon in seconds."),
+    start_time: Optional[str] = Query(default=None, description="ISO-8601 start timestamp for custom range."),
+    end_time: Optional[str] = Query(default=None, description="ISO-8601 end timestamp for custom range."),
+    observation_id: Optional[str] = Query(default=None, description="Specific reference observation ID to anchor prediction."),
+    service: PredictiveIntelligenceService = Depends(get_predictive_intelligence),
+) -> PredictiveForecast:
+    """
+    Retrieve deterministic, short-horizon predictive forecast of operational signals,
+    capacity pressure, and advisory pod requirements.
+    """
+    try:
+        return service.generate_forecast(
+            window=window,
+            horizon=horizon,
+            horizon_seconds=horizon_seconds,
+            start_time=start_time,
+            end_time=end_time,
+            observation_id=observation_id,
         )
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err)) from val_err

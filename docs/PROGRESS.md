@@ -1,7 +1,7 @@
 # Implementation Progress — SentinelScale
 
 > Last updated: 2026-09-04
-> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (179 passed, 1 skipped)
+> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (217 passed, 1 skipped)
 
 ---
 
@@ -21,8 +21,9 @@
 | Phase 4C | Operational Metrics & Prometheus Exposition (/metrics) | ✅ COMPLETE |
 | Phase 4D | Integration, End-to-End Validation & Safety Gate | ✅ COMPLETE |
 | Phase 5A | Historical Intelligence Foundation (Analytics, Trends, Divergence) | ✅ COMPLETE |
-| **Phase 5B** | **Behavioral Baseline & Anomaly Intelligence** | **✅ COMPLETE** |
-| Phase 5C+ | Adaptive policy intelligence, live production shadow harnesses | ❌ NOT STARTED |
+| Phase 5B | Behavioral Baseline & Anomaly Intelligence | ✅ COMPLETE |
+| **Phase 5C** | **Adaptive Predictive Intelligence (OLS Trend, Capacity Pressure, Pod Advisory)** | **✅ COMPLETE** |
+| Phase 6+ | Live production shadow harnesses & automated actuation gating | ❌ NOT STARTED |
 
 ---
 
@@ -38,8 +39,8 @@ python run_tests.py
 | Demo API | 9 passed | ✅ |
 | Traffic Intelligence | 18 passed | ✅ |
 | Demand Intelligence | 5 passed | ✅ |
-| Platform & Decision Engine | 147 passed, 1 skipped | ✅ |
-| **Total** | **179 tests** | **✅ ALL PASSING** |
+| Platform & Decision Engine | 185 passed, 1 skipped | ✅ |
+| **Total** | **217 tests** | **✅ ALL PASSING** |
 
 The 1 skipped test is `test_live_prometheus_integration_optional` — intentionally skipped when live Prometheus is not running locally.
 
@@ -129,12 +130,21 @@ The 1 skipped test is `test_live_prometheus_integration_optional` — intentiona
 - [x] `services/platform/app/api/v1/endpoints.py` — Added read-only endpoint `GET /api/v1/intelligence/anomalies`.
 - [x] `services/platform/tests/test_anomaly_intelligence.py` — 11 comprehensive unit and API tests covering normal, elevated, anomalous, direction, zero-variance, cold-start, multi-signal, domain patterns, and read-only isolation.
 
+### Phase 5C: Adaptive Predictive Intelligence
+- [x] `services/platform/app/models/prediction.py` — Pydantic response models: `PredictiveForecast`, `SignalForecast`, `PredictivePressure`, `PredictivePodAdvisory`, `PredictionStatus`, `TrendDirection`, `ConfidenceLevel`, `PressureLevel`, `DataQuality`.
+- [x] `services/platform/app/services/intelligence/predictive_base.py` — `PredictiveIntelligenceService` abstract interface.
+- [x] `services/platform/app/services/intelligence/predictive.py` — `DefaultPredictiveIntelligenceService` computing deterministic Ordinary Least Squares (OLS) linear trend projections, residual variance & outlier resistance, confidence degradation, domain clamping, capacity pressure assessment, and advisory replica requirements with comparative baseline HPA delta.
+- [x] `services/platform/app/services/intelligence/factory.py` — Singleton factory for `PredictiveIntelligenceService`.
+- [x] `services/platform/app/api/v1/endpoints.py` — Added read-only endpoint `GET /api/v1/intelligence/predictions`.
+- [x] `services/platform/tests/test_predictive_intelligence.py` — 38 comprehensive unit, mathematical, edge-case, and API integration tests.
+- [x] `docs/PHASE_5C_PREDICTIVE_INTELLIGENCE.md` — Formal Phase 5C design and API specification.
+
 ---
 
 ## Safety Invariants Preserved
 1. `dry_run = True` is enforced unconditionally in `ScalingDecision` and preserved across history, metrics, and intelligence analytics.
 2. `shadow_mode = True` enables parallel baseline HPA evaluation without mutating infrastructure.
 3. Zero autonomous cluster mutation calls or `kubectl` subprocess executions.
-4. All Historical and Anomaly Intelligence endpoints (`GET /api/v1/intelligence/...`) are strictly read-only; never trigger evaluations, query upstream services, or mutate database state.
+4. All Historical, Anomaly, and Predictive Intelligence endpoints (`GET /api/v1/intelligence/...`) are strictly read-only; never trigger evaluations, query upstream services, or mutate database state.
 5. All database queries remain fully parameterized with SQLite WAL and indexing.
 6. Zero ML/LLM or decision engine feedback introduced in this phase.

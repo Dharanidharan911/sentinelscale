@@ -5,9 +5,12 @@ from app.services.intelligence.anomaly import AnomalyIntelligenceService
 from app.services.intelligence.base import HistoricalIntelligenceService
 from app.services.intelligence.baseline import BehavioralBaselineService
 from app.services.intelligence.historical import DefaultHistoricalIntelligenceService
+from app.services.intelligence.predictive import DefaultPredictiveIntelligenceService
+from app.services.intelligence.predictive_base import PredictiveIntelligenceService
 
 _intelligence_service_instance: Optional[HistoricalIntelligenceService] = None
 _anomaly_service_instance: Optional[AnomalyIntelligenceService] = None
+_predictive_service_instance: Optional[PredictiveIntelligenceService] = None
 
 
 def get_historical_intelligence_service(
@@ -38,3 +41,16 @@ def get_anomaly_intelligence_service(
             baseline_service=baseline_service,
         )
     return _anomaly_service_instance
+
+
+def get_predictive_intelligence_service(
+    history_store: Optional[DecisionHistoryStore] = None,
+) -> PredictiveIntelligenceService:
+    """
+    Factory returning singleton PredictiveIntelligenceService.
+    """
+    global _predictive_service_instance
+    if _predictive_service_instance is None or history_store is not None:
+        store = history_store or get_history_store()
+        _predictive_service_instance = DefaultPredictiveIntelligenceService(history_store=store)
+    return _predictive_service_instance
