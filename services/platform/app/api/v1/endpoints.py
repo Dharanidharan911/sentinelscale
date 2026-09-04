@@ -2,6 +2,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from app.config.settings import settings
+from app.models.anomaly import AnomalyAssessment
 from app.models.context import DecisionContext, PolicyOverrides
 from app.models.decision import ScalingDecision
 from app.models.history import HistoryStats, StoredObservation
@@ -11,8 +12,12 @@ from app.services.context_aggregator import AggregationError, ContextAggregatorS
 from app.services.decision_engine import DecisionEngine
 from app.services.history.base import DecisionHistoryStore
 from app.services.history.factory import get_history_store
+from app.services.intelligence.anomaly import AnomalyIntelligenceService
 from app.services.intelligence.base import HistoricalIntelligenceService
-from app.services.intelligence.factory import get_historical_intelligence_service
+from app.services.intelligence.factory import (
+    get_anomaly_intelligence_service,
+    get_historical_intelligence_service,
+)
 from app.services.resource_observer import ResourceObserverService
 from app.services.telemetry.base import ResourceTelemetryProvider, TelemetryProviderError
 from app.services.telemetry.factory import get_telemetry_provider
@@ -261,5 +266,104 @@ async def get_history_divergence(
     """
     try:
         return service.get_divergence(window=window, start_time=start_time, end_time=end_time)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err)) from val_err
+
+
+# ==============================================================================
+# Phase 5B: Read-Only Behavioral Baseline & Anomaly Intelligence Endpoints
+# ==============================================================================
+
+def get_anomaly_intelligence() -> AnomalyIntelligenceService:
+    return get_anomaly_intelligence_service()
+
+
+@router.get("/intelligence/anomalies", response_model=AnomalyAssessment)
+async def get_anomalies(
+    window: Optional[str] = Query(default=None, description="Pre-defined baseline window (5m, 15m, 1h, 6h, 24h, 7d)."),
+    start_time: Optional[str] = Query(default=None, description="ISO-8601 start timestamp for baseline window."),
+    end_time: Optional[str] = Query(default=None, description="ISO-8601 end timestamp for baseline window."),
+    observation_id: Optional[str] = Query(default=None, description="Optional UUID of specific historical observation to assess."),
+    predicted_legitimate_rps: Optional[float] = Query(default=None, description="Current predicted legitimate RPS."),
+    traffic_risk: Optional[float] = Query(default=None, ge=0.0, le=1.0, description="Current assessed traffic risk score."),
+    current_capacity_rps: Optional[float] = Query(default=None, description="Current cluster capacity in RPS."),
+    recommended_pods: Optional[int] = Query(default=None, ge=1, description="Current recommended pods."),
+    current_pods: Optional[int] = Query(default=None, ge=1, description="Current running pods."),
+    baseline_hpa_recommended_pods: Optional[int] = Query(default=None, ge=1, description="Current baseline HPA recommended pods."),
+    pod_delta_vs_baseline: Optional[int] = Query(default=None, description="Current signed divergence vs reactive HPA."),
+    history_store: DecisionHistoryStore = Depends(get_history_repository),
+    anomaly_service: AnomalyIntelligenceService = Depends(get_anomaly_intelligence),
+) -> AnomalyAssessment:
+    """
+    Evaluate current metrics against historical behavioral baselines to detect anomalies.
+    Purely read-only; does not trigger evaluations, query upstream microservices, or mutate state.
+    """
+    obs_context: Optional[StoredObservation] = None
+    current_vals: dict[str, float] = {}
+
+    if observation_id is not None:
+        obs = history_store.get_observation(observation_id=observation_id)
+        if not obs:
+            raise HTTPException(status_code=404, detail=f"Observation '{observation_id}' not found.")
+        obs_context = obs
+        if obs.predicted_legitimate_rps is not None:
+            current_vals["predicted_legitimate_rps"] = obs.predicted_legitimate_rps
+        if obs.traffic_risk is not None:
+            current_vals["traffic_risk"] = obs.traffic_risk
+        if obs.current_capacity_rps is not None:
+            current_vals["current_capacity_rps"] = obs.current_capacity_rps
+        if obs.recommended_pods is not None:
+            current_vals["recommended_pods"] = float(obs.recommended_pods)
+        if obs.current_pods is not None:
+            current_vals["current_pods"] = float(obs.current_pods)
+        if obs.baseline_hpa_recommended_pods is not None:
+            current_vals["baseline_hpa_recommended_pods"] = float(obs.baseline_hpa_recommended_pods)
+        if obs.pod_delta_vs_baseline is not None:
+            current_vals["pod_delta_vs_baseline"] = float(obs.pod_delta_vs_baseline)
+    else:
+        # Check query param overrides
+        if predicted_legitimate_rps is not None:
+            current_vals["predicted_legitimate_rps"] = predicted_legitimate_rps
+        if traffic_risk is not None:
+            current_vals["traffic_risk"] = traffic_risk
+        if current_capacity_rps is not None:
+            current_vals["current_capacity_rps"] = current_capacity_rps
+        if recommended_pods is not None:
+            current_vals["recommended_pods"] = float(recommended_pods)
+        if current_pods is not None:
+            current_vals["current_pods"] = float(current_pods)
+        if baseline_hpa_recommended_pods is not None:
+            current_vals["baseline_hpa_recommended_pods"] = float(baseline_hpa_recommended_pods)
+        if pod_delta_vs_baseline is not None:
+            current_vals["pod_delta_vs_baseline"] = float(pod_delta_vs_baseline)
+
+        # If no values provided at all, fallback to latest successful observation in history
+        if not current_vals:
+            latest = history_store.list_observations(limit=1, success=True)
+            if latest:
+                obs_context = latest[0]
+                if obs_context.predicted_legitimate_rps is not None:
+                    current_vals["predicted_legitimate_rps"] = obs_context.predicted_legitimate_rps
+                if obs_context.traffic_risk is not None:
+                    current_vals["traffic_risk"] = obs_context.traffic_risk
+                if obs_context.current_capacity_rps is not None:
+                    current_vals["current_capacity_rps"] = obs_context.current_capacity_rps
+                if obs_context.recommended_pods is not None:
+                    current_vals["recommended_pods"] = float(obs_context.recommended_pods)
+                if obs_context.current_pods is not None:
+                    current_vals["current_pods"] = float(obs_context.current_pods)
+                if obs_context.baseline_hpa_recommended_pods is not None:
+                    current_vals["baseline_hpa_recommended_pods"] = float(obs_context.baseline_hpa_recommended_pods)
+                if obs_context.pod_delta_vs_baseline is not None:
+                    current_vals["pod_delta_vs_baseline"] = float(obs_context.pod_delta_vs_baseline)
+
+    try:
+        return anomaly_service.assess_anomalies(
+            current_values=current_vals,
+            window=window,
+            start_time=start_time,
+            end_time=end_time,
+            observation_context=obs_context,
+        )
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err)) from val_err

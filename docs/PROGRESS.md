@@ -1,7 +1,7 @@
 # Implementation Progress — SentinelScale
 
 > Last updated: 2026-09-04
-> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (168 passed, 1 skipped)
+> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (179 passed, 1 skipped)
 
 ---
 
@@ -20,8 +20,9 @@
 | Phase 4B | Decision History & Audit Persistence (SQLite) | ✅ COMPLETE |
 | Phase 4C | Operational Metrics & Prometheus Exposition (/metrics) | ✅ COMPLETE |
 | Phase 4D | Integration, End-to-End Validation & Safety Gate | ✅ COMPLETE |
-| **Phase 5A** | **Historical Intelligence Foundation (Analytics, Trends, Divergence)** | **✅ COMPLETE** |
-| Phase 5B+ | Predictive analytics, live production shadow harnesses | ❌ NOT STARTED |
+| Phase 5A | Historical Intelligence Foundation (Analytics, Trends, Divergence) | ✅ COMPLETE |
+| **Phase 5B** | **Behavioral Baseline & Anomaly Intelligence** | **✅ COMPLETE** |
+| Phase 5C+ | Adaptive policy intelligence, live production shadow harnesses | ❌ NOT STARTED |
 
 ---
 
@@ -37,8 +38,8 @@ python run_tests.py
 | Demo API | 9 passed | ✅ |
 | Traffic Intelligence | 18 passed | ✅ |
 | Demand Intelligence | 5 passed | ✅ |
-| Platform & Decision Engine | 136 passed, 1 skipped | ✅ |
-| **Total** | **168 tests** | **✅ ALL PASSING** |
+| Platform & Decision Engine | 147 passed, 1 skipped | ✅ |
+| **Total** | **179 tests** | **✅ ALL PASSING** |
 
 The 1 skipped test is `test_live_prometheus_integration_optional` — intentionally skipped when live Prometheus is not running locally.
 
@@ -117,11 +118,16 @@ The 1 skipped test is `test_live_prometheus_integration_optional` — intentiona
 - [x] `services/platform/app/services/intelligence/historical.py` — `DefaultHistoricalIntelligenceService` providing deterministic aggregations over persisted `StoredObservation` records for predefined windows (`5m`, `15m`, `1h`, `6h`, `24h`, `7d`) and custom start/end ranges.
 - [x] `services/platform/app/services/intelligence/factory.py` — Singleton factory for `HistoricalIntelligenceService`.
 - [x] `services/platform/app/services/history/base.py` & `sqlite_store.py` — Added `get_observations_in_range(start_time, end_time, ...)` indexed range query.
-- [x] `services/platform/app/api/v1/endpoints.py` — Added read-only endpoints:
-  - `GET /api/v1/intelligence/history/summary`
-  - `GET /api/v1/intelligence/history/trends`
-  - `GET /api/v1/intelligence/history/divergence`
-- [x] `services/platform/tests/test_historical_intelligence.py` — 7 comprehensive unit and API tests validating empty history, single record, mixed records, time window filtering, input validation, and read-only isolation.
+- [x] `services/platform/app/api/v1/endpoints.py` — Added read-only endpoints (`GET /api/v1/intelligence/history/summary`, `trends`, `divergence`).
+- [x] `services/platform/tests/test_historical_intelligence.py` — 7 comprehensive unit and API tests.
+
+### Phase 5B: Behavioral Baseline & Anomaly Intelligence
+- [x] `services/platform/app/models/anomaly.py` — Pydantic response models: `AnomalyAssessment`, `AnomalySignal`, `MetricBaseline`, `AnomalySeverity` (`NORMAL`, `ELEVATED`, `ANOMALOUS`, `INSUFFICIENT_DATA`), `SignalDirection` (`HIGHER_THAN_BASELINE`, `LOWER_THAN_BASELINE`, `NEAR_BASELINE`).
+- [x] `services/platform/app/services/intelligence/baseline.py` — `BehavioralBaselineService` computing deterministic population statistics (mean, stddev, min, max, median) per signal over historical observation windows.
+- [x] `services/platform/app/services/intelligence/anomaly.py` — `AnomalyIntelligenceService` executing z-score evaluation, zero-variance fallback logic, cold start safeguards (min 5 samples), domain-aware signal interpretations, and attack mitigation pattern detection.
+- [x] `services/platform/app/services/intelligence/factory.py` — Singleton factory for `AnomalyIntelligenceService`.
+- [x] `services/platform/app/api/v1/endpoints.py` — Added read-only endpoint `GET /api/v1/intelligence/anomalies`.
+- [x] `services/platform/tests/test_anomaly_intelligence.py` — 11 comprehensive unit and API tests covering normal, elevated, anomalous, direction, zero-variance, cold-start, multi-signal, domain patterns, and read-only isolation.
 
 ---
 
@@ -129,6 +135,6 @@ The 1 skipped test is `test_live_prometheus_integration_optional` — intentiona
 1. `dry_run = True` is enforced unconditionally in `ScalingDecision` and preserved across history, metrics, and intelligence analytics.
 2. `shadow_mode = True` enables parallel baseline HPA evaluation without mutating infrastructure.
 3. Zero autonomous cluster mutation calls or `kubectl` subprocess executions.
-4. All Historical Intelligence endpoints (`GET /api/v1/intelligence/history/...`) are strictly read-only; never trigger evaluations, query upstream services, or mutate database state.
+4. All Historical and Anomaly Intelligence endpoints (`GET /api/v1/intelligence/...`) are strictly read-only; never trigger evaluations, query upstream services, or mutate database state.
 5. All database queries remain fully parameterized with SQLite WAL and indexing.
-6. Zero ML/LLM or predictive recalculation introduced in this phase.
+6. Zero ML/LLM or decision engine feedback introduced in this phase.
