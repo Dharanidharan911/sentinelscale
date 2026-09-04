@@ -1,7 +1,7 @@
 # Implementation Progress — SentinelScale
 
 > Last updated: 2026-09-04
-> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (217 passed, 1 skipped)
+> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (226 passed, 1 skipped)
 
 ---
 
@@ -22,7 +22,8 @@
 | Phase 4D | Integration, End-to-End Validation & Safety Gate | ✅ COMPLETE |
 | Phase 5A | Historical Intelligence Foundation (Analytics, Trends, Divergence) | ✅ COMPLETE |
 | Phase 5B | Behavioral Baseline & Anomaly Intelligence | ✅ COMPLETE |
-| **Phase 5C** | **Adaptive Predictive Intelligence (OLS Trend, Capacity Pressure, Pod Advisory)** | **✅ COMPLETE** |
+| Phase 5C | Adaptive Predictive Intelligence (OLS Trend, Capacity Pressure, Pod Advisory) | ✅ COMPLETE |
+| **Milestone** | **Formal HPA vs. SentinelScale Comparative Evaluation** | **✅ COMPLETE** |
 | Phase 6+ | Live production shadow harnesses & automated actuation gating | ❌ NOT STARTED |
 
 ---
@@ -39,8 +40,8 @@ python run_tests.py
 | Demo API | 9 passed | ✅ |
 | Traffic Intelligence | 18 passed | ✅ |
 | Demand Intelligence | 5 passed | ✅ |
-| Platform & Decision Engine | 185 passed, 1 skipped | ✅ |
-| **Total** | **217 tests** | **✅ ALL PASSING** |
+| Platform & Decision Engine | 194 passed, 1 skipped | ✅ |
+| **Total** | **226 tests** | **✅ ALL PASSING** |
 
 The 1 skipped test is `test_live_prometheus_integration_optional` — intentionally skipped when live Prometheus is not running locally.
 
@@ -139,12 +140,21 @@ The 1 skipped test is `test_live_prometheus_integration_optional` — intentiona
 - [x] `services/platform/tests/test_predictive_intelligence.py` — 38 comprehensive unit, mathematical, edge-case, and API integration tests.
 - [x] `docs/PHASE_5C_PREDICTIVE_INTELLIGENCE.md` — Formal Phase 5C design and API specification.
 
+### Milestone: Formal HPA vs. SentinelScale Comparative Evaluation
+- [x] `services/platform/app/models/evaluation.py` — Domain models: `EvaluationResult`, `EvaluationMetrics`, `EvaluationCategory` (`ALIGNED`, `SENTINELSCALE_PREVENTS_UNNECESSARY_SCALE`, `SENTINELSCALE_PROACTIVELY_SCALES`, `SCALE_DOWN_DIFFERENCE`, `UNCERTAIN`), `RecommendationDifference` (`EQUAL`, `SENTINELSCALE_FEWER_PODS`, `SENTINELSCALE_MORE_PODS`).
+- [x] `services/platform/app/services/evaluation/base.py` — `HPAEvaluationService` abstract interface.
+- [x] `services/platform/app/services/evaluation/evaluator.py` — `DefaultHPAEvaluationService` executing deterministic comparative analysis, savings derivation (`pod_hours_saved_per_hour`), unnecessary scale-up signals, and detailed human-readable explanations.
+- [x] `services/platform/app/services/evaluation/factory.py` & `__init__.py` — Singleton provider factory and package exports.
+- [x] `services/platform/app/api/v1/endpoints.py` — Endpoints: `POST /api/v1/evaluation/evaluate` (direct context) and `GET /api/v1/evaluation/hpa-vs-sentinelscale` (latest or specific observation ID).
+- [x] `services/platform/tests/test_hpa_evaluation.py` — 9 comprehensive tests for alignment, attack suppression, proactive scaling, scale-down difference, low confidence, replay from history, and API endpoints.
+- [x] `docs/HPA_VS_SENTINELSCALE_EVALUATION.md` — Comprehensive evaluation layer documentation.
+
 ---
 
 ## Safety Invariants Preserved
 1. `dry_run = True` is enforced unconditionally in `ScalingDecision` and preserved across history, metrics, and intelligence analytics.
 2. `shadow_mode = True` enables parallel baseline HPA evaluation without mutating infrastructure.
 3. Zero autonomous cluster mutation calls or `kubectl` subprocess executions.
-4. All Historical, Anomaly, and Predictive Intelligence endpoints (`GET /api/v1/intelligence/...`) are strictly read-only; never trigger evaluations, query upstream services, or mutate database state.
+4. All Historical, Anomaly, Predictive, and Evaluation endpoints (`GET /api/v1/intelligence/...`, `/api/v1/evaluation/...`) are strictly read-only; never trigger evaluations, query upstream services, or mutate database state.
 5. All database queries remain fully parameterized with SQLite WAL and indexing.
 6. Zero ML/LLM or decision engine feedback introduced in this phase.

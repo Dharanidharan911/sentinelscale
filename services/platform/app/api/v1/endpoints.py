@@ -5,12 +5,15 @@ from app.config.settings import settings
 from app.models.anomaly import AnomalyAssessment
 from app.models.context import DecisionContext, PolicyOverrides
 from app.models.decision import ScalingDecision
+from app.models.evaluation import EvaluationResult
 from app.models.history import HistoryStats, StoredObservation
 from app.models.intelligence import HistoricalDivergence, HistoricalSummary, HistoricalTrends
 from app.models.prediction import PredictiveForecast
 from app.models.resource import ResourceState
 from app.services.context_aggregator import AggregationError, ContextAggregatorService
 from app.services.decision_engine import DecisionEngine
+from app.services.evaluation.base import HPAEvaluationService
+from app.services.evaluation.factory import get_evaluation_service
 from app.services.history.base import DecisionHistoryStore
 from app.services.history.factory import get_history_store
 from app.services.intelligence.anomaly import AnomalyIntelligenceService
@@ -403,5 +406,55 @@ async def get_predictive_forecast(
             end_time=end_time,
             observation_id=observation_id,
         )
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err)) from val_err
+
+
+# ==============================================================================
+# HPA vs. SentinelScale Formal Evaluation Endpoints
+# ==============================================================================
+
+def get_evaluation() -> HPAEvaluationService:
+    return get_evaluation_service()
+
+
+@router.post("/evaluation/evaluate", response_model=EvaluationResult)
+async def evaluate_hpa_vs_sentinelscale(
+    context: DecisionContext,
+    service: HPAEvaluationService = Depends(get_evaluation),
+) -> EvaluationResult:
+    """
+    Formally evaluate and compare Traditional Kubernetes HPA vs. SentinelScale
+    from a given DecisionContext, outputting comparative metrics and explanations.
+    """
+    try:
+        return await service.evaluate_context(context)
+    except ValueError as val_err:
+        raise HTTPException(status_code=400, detail=str(val_err)) from val_err
+
+
+@router.get("/evaluation/hpa-vs-sentinelscale", response_model=EvaluationResult)
+async def get_hpa_vs_sentinelscale_evaluation(
+    observation_id: Optional[str] = Query(default=None, description="Observation ID to evaluate. Defaults to latest observation."),
+    service: HPAEvaluationService = Depends(get_evaluation),
+    history_repo: DecisionHistoryStore = Depends(get_history_repository),
+) -> EvaluationResult:
+    """
+    Retrieve formal HPA vs SentinelScale evaluation for a specific observation ID or the latest recorded observation.
+    """
+    try:
+        if observation_id:
+            return service.evaluate_observation_id(observation_id)
+
+        # Default to latest successful observation
+        latest_records = history_repo.list_observations(limit=1, success=True)
+        if not latest_records:
+            raise HTTPException(
+                status_code=404,
+                detail="No historical observations found to evaluate."
+            )
+        return service.evaluate_observation_id(latest_records[0].id)
+    except HTTPException:
+        raise
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err)) from val_err
