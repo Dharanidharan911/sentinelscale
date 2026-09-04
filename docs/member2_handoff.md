@@ -1,9 +1,9 @@
 # SentinelScale — Member 2 → Member 3 Handoff Document
 # Demand Intelligence — Checkpoint 3 Integration Readiness
 
-**Date:** 2024 (branch: `member2/demand-intelligence`)  
+**Date:** 2026-09-05 (branch: `member2/demand-intelligence`)  
 **Contract version:** `1.0.0` (frozen)  
-**Status: ✅ INTEGRATION READY (Prometheus telemetry optional)**
+**Status: ✅ MEMBER 2 FEATURE-COMPLETE; INTEGRATION READY**
 
 ---
 
@@ -17,6 +17,9 @@
 | Contract version | `1.0.0` |
 | Model version | `demand-v1` |
 | Service directory | `services/demand-intelligence/` |
+| Current local commit | `9bd5bf4` |
+| Current local tag | `member2-v1.5-confidence-observability` |
+| Remote publishing | Not authorized; nothing in v1.3–v1.5 was pushed |
 
 ---
 
@@ -191,7 +194,7 @@ python -m pytest services/demand-intelligence/tests -v -o "pythonpath=services/d
 
 **Results:**
 ```
-74 passed, 0 failed
+100 passed, 0 failed
 ```
 
 Test coverage includes:
@@ -305,6 +308,35 @@ Member 3 can proceed with real `DemandForecast` integration once:
 - [x] `trace_id` propagates from request
 - [x] `contract_version` is `"1.0.0"`
 - [x] JSON Schema validation passes
-- [x] 74 tests passing
+- [x] 100 tests passing
 
-**All criteria met. Member 3 can now replace `FakeDemandForecast` with the real service.**
+**All Member 2 criteria are met. Member 3 can replace `FakeDemandForecast` with the real service.**
+
+---
+
+## 14. Integration Boundary and Final Readiness
+
+Member 2 consumes `DemandObservation` records (inline, mock, or provider
+supplied) and produces only the frozen `DemandForecast` v1.0.0 contract.
+Member 2 imports neither Member 1 nor Member 3 implementation internals.
+
+```
+TrafficAssessment v1.0.0
+  -> [future contract-level observation/sanitization boundary]
+  -> DemandObservation -> Demand Intelligence -> DemandForecast v1.0.0
+  -> Member 3 DemandForecastClient -> DecisionContext
+```
+
+`TrafficAssessment` already exposes `legitimate_rps_estimate` and
+`legitimacy_score`, but no repository-approved mapping from those assessments
+to historical `DemandObservation` records exists. Member 1 and Member 3 must
+agree that mapping at the contract/API boundary before wiring it; Member 2 must
+not infer it or import either module's internals.
+
+Prometheus is optional and requires a deployment metric/query configuration;
+repository services do not emit the default `http_requests_total` metric. The
+mock provider remains deterministic for tests and local integration.
+
+Exact next integration action: have Member 3 call
+`POST /api/v1/demand/forecast` with its contract-approved historical
+`DemandObservation` list and propagate the shared trace ID.

@@ -266,6 +266,30 @@ After Checkpoint 3 (M3 integration is confirmed):
 
 ---
 
+## 16. Member 2 Completion and Integration Readiness Review (2026-09-05)
+
+**Current state:** independent Member 2 implementation is feature-complete for
+the current architecture.
+
+- Branch: `member2/demand-intelligence`
+- Latest local milestone: `member2-v1.5-confidence-observability`
+- Latest local commit: `9bd5bf4`
+- Contract: `DemandForecast` v1.0.0, frozen and unchanged
+- Verification: 100 Member 2 tests passed; `python run_tests.py` passed all four service suites.
+- Git: working tree was clean at review. Remote publishing is not authorized; v1.3 through v1.5 remain local only.
+
+### Classification of Remaining Work
+
+- **Completed:** deterministic forecasting, bounds, configuration, provider abstraction, mock/Prometheus providers, data validation, confidence regularity, diagnostics, HTTP API, traceability, health endpoints, contract testing, and documentation.
+- **Integration dependency:** mapping Member 1 `TrafficAssessment` (`legitimate_rps_estimate`, `legitimacy_score`) into a historical `DemandObservation` ingestion boundary. No approved API/contract mapping exists, so Member 2 must not invent one or import Member 1 internals.
+- **Integration dependency:** Member 3 must invoke the existing Member 2 HTTP endpoint and map the valid `DemandForecast` response into its `DecisionContext`.
+- **Deployment dependency:** Prometheus must expose a deployment-specific RPS metric/query. Repository services do not emit the default query metric.
+- **Optional future enhancement:** seasonality/stateful model calibration with production data; not required for the explainable deterministic v1 model.
+
+**Exact next action:** Member 3 should integrate its `DemandForecastClient` with `POST /api/v1/demand/forecast`, passing contract-approved observations and the shared trace ID. No remote push is authorized.
+
+---
+
 ## 12. Engineering Rules (Do Not Violate)
 
 1. **Contracts are frozen** — never modify `contracts/**` files without team agreement
