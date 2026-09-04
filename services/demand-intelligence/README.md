@@ -50,7 +50,7 @@ It does **not**:
 ```
 
 - `forecast_horizon_seconds` — required (default: 300). How far forward to forecast.
-- `observations` — optional. If omitted, the service uses the internal `MockDemandProvider`.  
+- `observations` — optional. If omitted, the service uses `PrometheusDemandProvider` when configured, otherwise the internal `MockDemandProvider`.
   If provided, must contain **≥ 2** valid observations.
 - `trace_id` — optional. Propagated to forecast output. Falls back to `X-Trace-ID` header.
 
@@ -92,7 +92,8 @@ ForecastRequest
 DemandForecastingService      ← selects provider
     │
     ├── StaticObservationProvider  ← if request.observations provided
-    └── MockDemandProvider         ← default (deterministic sinusoidal mock)
+    ├── PrometheusDemandProvider   ← opt-in telemetry adapter
+    └── MockDemandProvider         ← fallback when Prometheus is unconfigured
     │
     ▼
 Preprocessor                   ← validates, sorts, deduplicates
@@ -136,6 +137,24 @@ uvicorn app.main:app --port 8002 --reload
 
 Service docs: http://localhost:8002/docs
 
+### Prometheus Demand Provider
+
+Set `DEMAND_PROMETHEUS_URL` with Docker Compose (or `PROMETHEUS_URL` when
+running directly) to enable the real telemetry provider. It calls
+`/api/v1/query_range` with a five-second default timeout. `PROMETHEUS_QUERY`
+may override the default query and may contain `{target_service}`.
+
+```env
+DEMAND_PROMETHEUS_URL=http://prometheus:9090
+DEMAND_PROMETHEUS_QUERY=sum(rate(http_requests_total{service="{target_service}"}[1m]))
+PROMETHEUS_STEP_SECONDS=30
+PROMETHEUS_TIMEOUT_SECONDS=5
+```
+
+The query must return RPS matrix samples. An empty successful response is no
+data and yields the existing insufficient-data error; unreachable or malformed
+telemetry yields `503 provider_unavailable`, never a zero-demand forecast.
+
 ---
 
 ## Running Tests
@@ -161,10 +180,9 @@ python -m pytest services/demand-intelligence/tests -v -o "pythonpath=services/d
 
 | Limitation | Impact |
 |---|---|
-| Backed by `MockDemandProvider` by default | Predictions are synthetic; real telemetry provider not yet wired |
+| Default query metric is not yet emitted by repository services | Configure a query matching deployed telemetry before enabling Prometheus |
 | Linear trend model | Does not capture seasonality, non-linear patterns |
 | No persistence | History lives only within the request; no database |
-| No Prometheus integration | Real demand ingestion is a future phase |
 
 ---
 

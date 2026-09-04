@@ -11,8 +11,10 @@ from typing import List, Optional
 from app.models.demand import DemandForecast, ForecastRequest, DemandObservation
 from app.providers.base import DemandProvider
 from app.providers.mock_provider import MockDemandProvider
+from app.providers.prometheus_provider import PrometheusDemandProvider
 from app.providers.static_provider import StaticObservationProvider
 from app.engine.forecaster import produce_forecast
+from app.config.settings import settings
 
 
 class DemandForecastingService:
@@ -31,10 +33,10 @@ class DemandForecastingService:
         """
         Args:
             default_provider: Override the default provider. Used in tests
-                              to inject a controlled mock. If None, a fresh
-                              MockDemandProvider is used.
+                              to inject a controlled provider. If None, uses
+                              Prometheus when configured, otherwise the mock.
         """
-        self._default_provider = default_provider or MockDemandProvider()
+        self._default_provider = default_provider
 
     async def forecast_demand(self, request: ForecastRequest) -> DemandForecast:
         """
@@ -50,7 +52,7 @@ class DemandForecastingService:
             - InvalidObservationError → HTTP 422
             - ProviderUnavailableError → HTTP 503
         """
-        provider = self._select_provider(request.observations)
+        provider = self._select_provider(request.observations, request.target_service)
         observations: List[DemandObservation] = provider.get_observations(
             window_seconds=request.historical_window_seconds or 3600
         )
@@ -63,7 +65,18 @@ class DemandForecastingService:
     def _select_provider(
         self,
         inline_observations: Optional[List[DemandObservation]],
+        target_service: Optional[str],
     ) -> DemandProvider:
         if inline_observations:
             return StaticObservationProvider(inline_observations)
-        return self._default_provider
+        if self._default_provider is not None:
+            return self._default_provider
+        if settings.PROMETHEUS_URL:
+            return PrometheusDemandProvider(
+                base_url=settings.PROMETHEUS_URL,
+                query_template=settings.PROMETHEUS_QUERY,
+                target_service=target_service or "demo-api",
+                step_seconds=settings.PROMETHEUS_STEP_SECONDS,
+                timeout_seconds=settings.PROMETHEUS_TIMEOUT_SECONDS,
+            )
+        return MockDemandProvider()

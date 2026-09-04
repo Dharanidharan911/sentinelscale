@@ -3,7 +3,7 @@
 
 **Date:** 2024 (branch: `member2/demand-intelligence`)  
 **Contract version:** `1.0.0` (frozen)  
-**Status: ✅ INTEGRATION READY**
+**Status: ✅ INTEGRATION READY (Prometheus telemetry optional)**
 
 ---
 
@@ -57,7 +57,7 @@ X-Trace-ID: <optional-trace-id>
 ```
 
 > **Note:** Member 3 should supply `observations` from its telemetry/resource layer.  
-> If `observations` is omitted, the service uses the internal `MockDemandProvider`.
+> If omitted, the service uses `PrometheusDemandProvider` only when `PROMETHEUS_URL` is configured; otherwise it uses the deterministic `MockDemandProvider`.
 
 ---
 
@@ -128,6 +128,16 @@ The `X-Trace-ID` header is also echoed in the response headers.
 | `500` | `forecast_calculation_error` | Unexpected engine error | Alert; fall back to `HOLD` |
 
 **CRITICAL:** A `422` or `503` from this service must **never** be interpreted as "zero legitimate demand." These are data/availability errors. The correct default is `HOLD`.
+
+### Optional Prometheus Provider
+
+Set `DEMAND_PROMETHEUS_URL` in Compose (mapped to service `PROMETHEUS_URL`) to use compatible request-rate telemetry. The default query is:
+
+```promql
+sum(rate(http_requests_total{service="{target_service}"}[1m]))
+```
+
+`{target_service}` is supplied from the request; override `PROMETHEUS_QUERY` for deployed metric names. Unreachable, malformed, or invalid telemetry returns the existing `503 provider_unavailable`; a successful empty query returns `422 insufficient_data`. Neither means zero RPS.
 
 ---
 

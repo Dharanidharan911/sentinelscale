@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
 
 
 class Settings(BaseSettings):
@@ -20,6 +21,15 @@ class Settings(BaseSettings):
     FORECAST_SAMPLE_CONFIDENCE_SCALE: float = 30.0
     FORECAST_VARIANCE_CONFIDENCE_SCALE: float = 0.15
     FORECAST_INTERVAL_HALF_WIDTH_SIGMA: float = 1.5
+
+    # Prometheus is intentionally opt-in.  An empty URL preserves the
+    # deterministic mock provider for local development and test runs.
+    PROMETHEUS_URL: str = ""
+    PROMETHEUS_QUERY: str = (
+        'sum(rate(http_requests_total{service="{target_service}"}[1m]))'
+    )
+    PROMETHEUS_STEP_SECONDS: int = Field(default=30, ge=1)
+    PROMETHEUS_TIMEOUT_SECONDS: float = Field(default=5.0, gt=0.0)
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

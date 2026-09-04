@@ -47,7 +47,7 @@ API Traffic → Traffic Intelligence → Demand Intelligence → Resource Intell
 
 ## 4. Member 2 — Demand Intelligence — Current Implementation State
 
-### Status: ✅ INTEGRATION READY (Checkpoint 3)
+### Status: ✅ INTEGRATION READY (Checkpoint 3) + Prometheus provider available
 
 ### Completed Phases
 
@@ -59,6 +59,7 @@ API Traffic → Traffic Intelligence → Demand Intelligence → Resource Intell
 | 3 | Historical data window via MockDemandProvider | ✅ Done |
 | 4 | Forecast Quality Hardening (irregular intervals, bounds) | ✅ Done |
 | 5 | Configurable Forecasting (Settings migration) | ✅ Done |
+| 19 | Real Prometheus demand provider (opt-in adapter) | ✅ Done |
 | 6 | Trend detection (linear regression slope) | ✅ Done |
 | 7 | Forecasting engine separation | ✅ Done |
 | 8 | Forecast horizon support | ✅ Done |
@@ -74,7 +75,6 @@ API Traffic → Traffic Intelligence → Demand Intelligence → Resource Intell
 
 | Phase | Description | Priority |
 |---|---|---|
-| 19 | Real Prometheus demand provider | After Checkpoint 3 |
 | 20 | Member 1 TrafficAssessment integration | After Checkpoint 3 |
 | 21 | Real environment validation | After Checkpoint 3 |
 | 23 | Final handoff (already done partially) | Ongoing |
@@ -209,18 +209,32 @@ Member 3 needs from Member 2:
 
 After Checkpoint 3 (M3 integration is confirmed):
 
-1. **Phase 19** — Real demand provider  
-   - Create `PrometheusDemandProvider` implementing `DemandProvider`
-   - Replace `MockDemandProvider` as default when `PROMETHEUS_URL` is configured
-   - Keep mock as fallback
-
-2. **Phase 20** — Member 1 integration  
+1. **Phase 20** — Member 1 integration
    - Consume `TrafficAssessment.legitimacy_score` to weight demand observations
    - Only count observations from periods where `legitimacy_score >= threshold`
 
-3. **Confidence calibration** — Tune constants once real data is available
+2. **Confidence calibration** — Tune constants once real data is available
 
-4. **Phase 23 final handoff** — Update `docs/member2_handoff.md` with real Prometheus data
+3. **Phase 23 final handoff** — Update `docs/member2_handoff.md` with real Prometheus data
+
+---
+
+## 13. Member 2 Phase 19 — Prometheus Provider (2026-09-04)
+
+**Starting head:** `4f3612869141641b1062491346c098d36696272d`
+**Previous stable version:** `member2-v1.2-configurable-forecasting`
+**Contract:** `DemandForecast` v1.0.0 remains frozen and unchanged.
+
+- Added `PrometheusDemandProvider`, an isolated `/api/v1/query_range` adapter.
+- It emits ordered `DemandObservation` samples, combines equal timestamps from multi-series results, and uses no forecast-engine internals.
+- Network, HTTP, JSON, shape, timestamp, and RPS failures become `ProviderUnavailableError` (HTTP 503), never zero demand. Empty successful results remain no data and flow to the existing insufficient-data error.
+- Service selection is opt-in: an injected provider and inline observations retain precedence; `PROMETHEUS_URL` selects Prometheus; otherwise the deterministic mock remains the fallback.
+- Added validated `PROMETHEUS_URL`, `PROMETHEUS_QUERY`, `PROMETHEUS_STEP_SECONDS`, and `PROMETHEUS_TIMEOUT_SECONDS` settings. The default metric query requires deployment instrumentation; the repository currently does not emit it.
+- Added `app/providers/prometheus_provider.py` and `tests/test_prometheus_provider.py`; updated provider exports, service selection, settings, Compose/env example, README, and handoff.
+- Focused test: `python -m pytest services/demand-intelligence/tests/test_prometheus_provider.py -v -o "pythonpath=services/demand-intelligence"` → **9 passed**.
+- Regression: `python -m pytest services/demand-intelligence/tests -v -o "pythonpath=services/demand-intelligence"` → **87 passed**, 3 third-party deprecation warnings.
+
+**Next phase:** Phase 20, TrafficAssessment integration, after confirming an agreed upstream contract boundary; do not import Member 1 internals.
 
 ---
 
