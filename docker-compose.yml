@@ -148,6 +148,23 @@ services:
     networks:
       - sentinelscale-net
 
+  k6:
+    image: grafana/k6:0.50.0
+    container_name: sentinelscale-k6
+    profiles:
+      - load-test
+      - tools
+    volumes:
+      - ./load-tests/k6:/scripts:ro
+    environment:
+      - TARGET_URL=${TARGET_URL:-http://demo-api:8000}
+      - PROFILE=${PROFILE:-baseline}
+      - VU_SCALE=${VU_SCALE:-1.0}
+      - DURATION_SCALE=${DURATION_SCALE:-1.0}
+    command: run /scripts/workload.js
+    networks:
+      - sentinelscale-net
+
 volumes:
   prometheus-data:
     driver: local

@@ -35,6 +35,7 @@
 | **Stage M3-1** | **Prometheus Live Observability Integration** | **✅ COMPLETE** |
 | **Stage M3-2** | **Grafana Foundation & Infrastructure Observability** | **✅ COMPLETE** |
 | **Stage M3-3** | **Docker Compose Productionization & Validation** | **✅ COMPLETE** |
+| **Stage M3-4** | **k6 Load Testing Harness** | **✅ COMPLETE** |
 
 ---
 
@@ -50,8 +51,8 @@ python run_tests.py
 | **Demo API** | 9 passed | ✅ |
 | **Traffic Intelligence (M1)** | 5 passed | ✅ |
 | **Demand Intelligence (M2)** | 100 passed | ✅ |
-| **Platform & Decision Engine (M3)** | 251 passed | ✅ |
-| **Total** | **365 passed** | **✅ ALL PASSING** |
+| **Platform & Decision Engine (M3)** | 254 passed | ✅ |
+| **Total** | **368 passed** | **✅ ALL PASSING** |
 
 ---
 
@@ -148,6 +149,9 @@ python run_tests.py
 
 ### Stage M3-3: Docker Compose Productionization & Validation
 - [x] `docker-compose.yml`, `telemetry/prometheus/prometheus.yml`, `services/platform/Dockerfile`, `services/platform/tests/test_docker_compose_productionization.py` & `docs/STAGE_M3_3_DOCKER_COMPOSE_PRODUCTIONIZATION.md` — Productionized 6-service Docker Compose stack, healthcheck readiness gates, authoritative Prometheus scrape targets, non-root SQLite database permissions, and verified live inter-service container orchestration.
+
+### Stage M3-4: k6 Load Testing Harness
+- [x] `load-tests/k6/`, `docker-compose.yml`, `services/platform/tests/test_k6_load_testing.py` & `docs/STAGE_M3_4_K6_LOAD_TESTING.md` — Implemented modular k6 load testing suite supporting multi-stage traffic profiles (`smoke`, `baseline`, `spike`, `sustained`), realistic Demo API user journeys, Docker Compose profile execution (`--profile load-test`), and live Prometheus/Grafana telemetry validation.
 
 ---
 
