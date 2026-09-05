@@ -21,7 +21,7 @@ rules:
   # Read-only access to Deployment specs (desired replicas, matchLabels selector)
   - apiGroups: ["apps"]
     resources: ["deployments"]
-    verbs: ["get"]
+    verbs: ["get", "list"]
 
   # Read-only access to actual running Pods matching the workload selector
   - apiGroups: [""]

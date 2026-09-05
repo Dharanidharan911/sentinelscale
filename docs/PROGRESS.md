@@ -37,6 +37,7 @@
 | **Stage M3-3** | **Docker Compose Productionization & Validation** | **✅ COMPLETE** |
 | **Stage M3-4** | **k6 Load Testing Harness** | **✅ COMPLETE** |
 | **Stage M3-5** | **Live Kubernetes Runtime & Service Orchestration** | **✅ COMPLETE** |
+| **Stage M3-6** | **Kubernetes Resource Intelligence & Telemetry Normalization** | **✅ COMPLETE** |
 
 ---
 
@@ -52,8 +53,8 @@ python run_tests.py
 | **Demo API** | 9 passed | ✅ |
 | **Traffic Intelligence (M1)** | 5 passed | ✅ |
 | **Demand Intelligence (M2)** | 100 passed | ✅ |
-| **Platform & Decision Engine (M3)** | 260 passed, 2 skipped | ✅ |
-| **Total** | **374 passed, 2 skipped** | **✅ ALL PASSING** |
+| **Platform & Decision Engine (M3)** | 286 passed, 2 skipped | ✅ |
+| **Total** | **400 passed, 2 skipped** | **✅ ALL PASSING** |
 
 ---
 
@@ -156,6 +157,9 @@ python run_tests.py
 
 ### Stage M3-5: Live Kubernetes Runtime & Service Orchestration
 - [x] `infrastructure/kubernetes/`, `services/platform/tests/test_kubernetes_manifests.py` & `docs/STAGE_M3_5_LIVE_KUBERNETES.md` — Deployed complete SentinelScale microservice stack (`demo-api`, `traffic-intelligence`, `demand-intelligence`, `platform`, `prometheus`, `grafana`) to Docker Desktop Kubernetes in namespace `sentinelscale`. Validated non-root security contexts, internal Kubernetes DNS service discovery, read-only RBAC, real live Prometheus scraping, Grafana dashboard visualization, k6 load testing against Kubernetes, and controlled pod restart/recovery resilience.
+
+### Stage M3-6: Kubernetes Resource Intelligence & Telemetry Normalization
+- [x] `services/platform/app/services/telemetry/kubernetes_provider.py`, `hybrid_provider.py`, `quantity_parser.py`, `services/platform/tests/test_kubernetes_resource_intelligence_live.py` & `docs/STAGE_M3_6_KUBERNETES_RESOURCE_INTELLIGENCE.md` — Implemented live Kubernetes resource observation via REST API, robust CPU/Memory quantity parsing, read-only RBAC scoping, live Prometheus denominator normalization, and full JSON Schema conformance for `ResourceState`.
 
 ---
 

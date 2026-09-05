@@ -45,7 +45,7 @@ spec:
             - name: PROMETHEUS_URL
               value: "http://prometheus.sentinelscale.svc.cluster.local:9090"
             - name: TELEMETRY_PROVIDER
-              value: "prometheus"
+              value: "hybrid"
             - name: SENTINEL_DRY_RUN
               value: "true"
             - name: SENTINEL_SHADOW_MODE
