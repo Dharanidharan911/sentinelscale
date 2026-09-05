@@ -1,6 +1,6 @@
 global:
-  scrape_interval: 5s
-  evaluation_interval: 5s
+  scrape_interval: 2s
+  evaluation_interval: 2s
 
 scrape_configs:
   - job_name: 'sentinelscale-services'
@@ -11,6 +11,14 @@ scrape_configs:
           - 'traffic-intelligence:8001'
           - 'demand-intelligence:8002'
           - 'platform:8003'
+          - '127.0.0.1:8000'
+          - '127.0.0.1:8001'
+          - '127.0.0.1:8002'
+          - '127.0.0.1:8003'
+          - 'localhost:8000'
+          - 'localhost:8001'
+          - 'localhost:8002'
+          - 'localhost:8003'
         labels:
           environment: 'development'
           cluster: 'sentinelscale-local'
