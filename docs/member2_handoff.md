@@ -340,3 +340,14 @@ mock provider remains deterministic for tests and local integration.
 Exact next integration action: have Member 3 call
 `POST /api/v1/demand/forecast` with its contract-approved historical
 `DemandObservation` list and propagate the shared trace ID.
+
+---
+
+## 15. IC-4 Model & Feature Architecture Update (2026-09-06)
+
+- **Service Status**: 121 tests passing (100% pass rate).
+- **Feature Engineering Layer (M2-4)**: `app/engine/features.py` extracts 12 deterministic, leakage-safe features (`recent_demand`, `lag_1`, `lag_2`, `rolling_mean_short`, `rolling_mean_full`, `rolling_std_full`, `trend_slope`, `rate_of_change`, `acceleration`, `sampling_regularity`, `time_span_seconds`, `horizon_ratio`).
+- **ML Candidate Forecaster (M2-5)**: `app/engine/ml_forecaster.py` implements regularized Ridge regression (`demand-ml-v1`) with fallback to baseline `demand-v1` when $N < 4$.
+- **Model Benchmark (M2-6)**: `benchmarks/benchmark_suite.py` executed across 6 synthetic scenarios. Baseline (`demand-v1`) achieved 54.19 RPS MAE and 83.3% interval coverage vs ML candidate (`demand-ml-v1`) 180.43 RPS MAE and 33.3% coverage due to surge-damping properties. Baseline retained as preferred default.
+- **Provider & Engine Selection (M2-7)**: Configurable via `FORECAST_MODEL=baseline` (or `ml`) and `ML_RIDGE_ALPHA=1.0`. All outputs continue to conform 100% to frozen `DemandForecast` v1.0.0.
+

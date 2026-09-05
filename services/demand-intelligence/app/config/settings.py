@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     SERVICE_VERSION: str = "0.1.0"
     CONTRACT_VERSION: str = "1.0.0"
     MODEL_VERSION: str = "demand-v1"
+    FORECAST_MODEL: str = "baseline"
+    ML_RIDGE_ALPHA: float = 1.0
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
     PORT: int = 8002

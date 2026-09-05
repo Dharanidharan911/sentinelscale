@@ -290,6 +290,33 @@ the current architecture.
 
 ---
 
+## 17. Member 2 IC-4 Milestone — Feature Engineering, ML Candidate, Benchmark & Provider Architecture (2026-09-06)
+
+**Contract:** `DemandForecast` v1.0.0 remains frozen and unchanged.
+
+- **M2-4 Feature Engineering (`app/engine/features.py`)**:
+  - Implemented `DemandFeatureExtractor` extracting 12 canonical, leakage-safe features (`recent_demand`, `lag_1`, `lag_2`, `rolling_mean_short`, `rolling_mean_full`, `rolling_std_full`, `trend_slope`, `rate_of_change`, `acceleration`, `sampling_regularity`, `time_span_seconds`, `horizon_ratio`).
+  - Strict invariants: strictly $t \le t_{last}$ (zero future leakage), deterministic, stable named and vector ordering, explicit `InsufficientDataError` when $N < 4$.
+- **M2-5 ML Forecasting Model (`app/engine/ml_forecaster.py`)**:
+  - Implemented `MLDemandForecaster` with model version identity `"demand-ml-v1"`.
+  - Regularized closed-form Ridge linear regression solver ($\alpha=1.0$), non-negative clamping, bounds invariant ($\text{lower} \le \text{predicted} \le \text{upper}$), and confidence scoring.
+  - Failure-safe fallback: when $N < 4$ or upon numerical anomaly, gracefully delegates to baseline RWMA (`demand-v1`) with structured fallback logging.
+- **M2-6 Benchmark Suite (`benchmarks/benchmark_suite.py`, `tests/test_forecast_benchmark.py`)**:
+  - Executed reproducible comparison across 6 synthetic scenarios (steady growth, decline, flat, sinusoidal, flash surge, noisy).
+  - Actual measured results:
+    - Baseline (`demand-v1`): Overall MAE = 54.19 RPS, RMSE = 65.94 RPS, Latency = 0.1702 ms, Interval Coverage = 83.3%.
+    - ML Candidate (`demand-ml-v1`): Overall MAE = 180.43 RPS, RMSE = 362.66 RPS, Latency = 1.6652 ms, Interval Coverage = 33.3%.
+    - Decision: ML candidate exhibits superior accuracy on smooth linear trends but overshoots on step-surge discontinuities. Baseline retained as the preferred default; ML retained as configurable opt-in.
+- **M2-7 Provider Architecture (`app/config/settings.py`, `app/services/forecaster.py`)**:
+  - Added `FORECAST_MODEL` (default: `"baseline"`, opt-in: `"ml"`) and `ML_RIDGE_ALPHA` (default: 1.0).
+  - Extended `DemandForecastingService` to orchestrate model selection and log `model_version`.
+  - Exported all providers from `app/providers/__init__.py`.
+- **Test Results**:
+  - Focused: 121 Member 2 tests passed (`pytest services/demand-intelligence/tests`).
+  - Full repo: `python run_tests.py` passed all 4 service test suites cleanly.
+
+---
+
 ## 12. Engineering Rules (Do Not Violate)
 
 1. **Contracts are frozen** — never modify `contracts/**` files without team agreement
@@ -299,3 +326,4 @@ the current architecture.
 5. **Module boundaries clean** — Member 2 does not import Member 3 code
 6. **Tests must pass before commit** — run `run_tests.py` before any push
 7. **Update this file** — every agent must update `docs/implementation_context.md` after completing work
+
