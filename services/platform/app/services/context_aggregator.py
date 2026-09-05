@@ -13,6 +13,7 @@ from app.models.demand_contract import DemandForecast
 from app.models.resource import ResourceState
 from app.models.traffic_contract import TrafficAssessment
 from app.services.decision_engine import DecisionEngine
+from app.services.history import DemandObservationAccumulator, get_demand_accumulator
 from app.services.resource_observer import ResourceObserverService
 from app.services.telemetry.base import TelemetryProviderError
 
@@ -46,11 +47,13 @@ class ContextAggregatorService:
         demand_client: Optional[DemandIntelligenceClient] = None,
         resource_observer: Optional[ResourceObserverService] = None,
         decision_engine: Optional[DecisionEngine] = None,
+        demand_accumulator: Optional[DemandObservationAccumulator] = None,
     ):
         self.traffic_client = traffic_client or TrafficIntelligenceClient()
         self.demand_client = demand_client or DemandIntelligenceClient()
         self.resource_observer = resource_observer or ResourceObserverService()
         self.decision_engine = decision_engine or DecisionEngine()
+        self.demand_accumulator = demand_accumulator or get_demand_accumulator()
 
     async def aggregate_context(
         self,
@@ -74,6 +77,14 @@ class ContextAggregatorService:
             extra={"trace_id": resolved_trace_id, "service": "platform"},
         )
 
+        # Retrieve accumulated historical demand observations for target workload
+        historical_observations = None
+        if self.demand_accumulator:
+            historical_observations = self.demand_accumulator.get_historical_demand_observations(
+                target_service=workload,
+                historical_window_seconds=settings.DEMAND_OBSERVATION_HISTORY_WINDOW_SECONDS,
+            )
+
         # Concurrently fetch from all 3 intelligence streams
         results = await asyncio.gather(
             self.traffic_client.fetch_assessment(
@@ -83,6 +94,9 @@ class ContextAggregatorService:
             self.demand_client.fetch_forecast(
                 forecast_horizon_seconds=forecast_horizon_seconds,
                 trace_id=resolved_trace_id,
+                target_service=workload,
+                historical_window_seconds=settings.DEMAND_OBSERVATION_HISTORY_WINDOW_SECONDS,
+                observations=historical_observations if historical_observations else None,
             ),
             self.resource_observer.get_current_resource_state(
                 namespace=namespace,
@@ -93,6 +107,16 @@ class ContextAggregatorService:
         )
 
         traffic_res, demand_res, resource_res = results
+
+        # Record valid traffic assessment into demand observation accumulator
+        if not isinstance(traffic_res, Exception) and self.demand_accumulator:
+            try:
+                self.demand_accumulator.record_traffic_assessment(traffic_res, target_service=workload)
+            except Exception as acc_err:
+                logger.warning(
+                    f"Failed to record traffic assessment in demand accumulator: {acc_err}",
+                    extra={"trace_id": resolved_trace_id, "service": "platform"},
+                )
 
         # Inspect and handle upstream failures explicitly (never fabricate default 0 metrics)
         if isinstance(traffic_res, Exception):

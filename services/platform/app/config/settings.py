@@ -60,6 +60,14 @@ class Settings(BaseSettings):
     DECISION_HISTORY_DB_PATH: str = "./data/sentinelscale_history.db"
     DECISION_HISTORY_RETENTION_DAYS: int = Field(default=7, ge=1, description="Observation history retention period in days.")
 
+    # Historical Demand Observation Accumulator Configuration (Stage F2)
+    DEMAND_OBSERVATIONS_ENABLED: bool = True
+    DEMAND_OBSERVATION_HISTORY_WINDOW_SECONDS: int = Field(default=3600, ge=60, description="Default lookback window for historical demand observations.")
+    DEMAND_OBSERVATION_MAX_RISK: float = Field(default=0.80, ge=0.0, le=1.0, description="Max security risk threshold above which observations are filtered.")
+    DEMAND_OBSERVATION_MIN_LEGITIMACY: float = Field(default=0.20, ge=0.0, le=1.0, description="Min legitimacy threshold below which observations are filtered.")
+    DEMAND_OBSERVATION_MIN_CONFIDENCE: float = Field(default=0.30, ge=0.0, le=1.0, description="Min confidence threshold below which observations are filtered.")
+    DEMAND_OBSERVATION_RETENTION_SECONDS: int = Field(default=86400, ge=300, description="Retention window for demand observations in seconds.")
+
     # Operational Metrics & Observability Configuration (Phase 4C)
     METRICS_ENABLED: bool = True
 

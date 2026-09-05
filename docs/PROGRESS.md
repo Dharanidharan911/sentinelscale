@@ -24,6 +24,12 @@
 | Phase 5B | Behavioral Baseline & Anomaly Intelligence | ✅ COMPLETE |
 | Phase 5C | Adaptive Predictive Intelligence (OLS Trend, Capacity Pressure, Pod Advisory) | ✅ COMPLETE |
 | **Milestone** | **Formal HPA vs. SentinelScale Comparative Evaluation** | **✅ COMPLETE** |
+| **Stage E** | **Cross-Module Live Integration (M1 + M2 demand-v1 + M3)** | **✅ COMPLETE** |
+| **Stage F1** | **Telemetry Extraction & Scenario Input Harness** | **✅ COMPLETE** |
+| **Stage F2** | **Historical Demand Observation Accumulator** | **✅ COMPLETE** |
+| **Stage F3** | **M2 Observation Dispatcher & Dynamic Demand Forecast** | **✅ COMPLETE** |
+| **Stage F4** | **End-to-End Dynamic Scenario Suite** | **✅ COMPLETE** |
+| **Stage F5** | **Comparative HPA vs SentinelScale Evaluation** | **✅ COMPLETE** |
 | Phase 6+ | Live production shadow harnesses & automated actuation gating | ❌ NOT STARTED |
 
 ---
@@ -38,12 +44,14 @@ python run_tests.py
 | Service | Tests | Status |
 | :--- | :--- | :--- |
 | Demo API | 9 passed | ✅ |
-| Traffic Intelligence | 18 passed | ✅ |
-| Demand Intelligence | 5 passed | ✅ |
-| Platform & Decision Engine | 194 passed, 1 skipped | ✅ |
-| **Total** | **226 tests** | **✅ ALL PASSING** |
+| Traffic Intelligence | 5 passed | ✅ |
+| Demand Intelligence | 100 passed | ✅ |
+| Platform & Decision Engine | 242 passed, 2 skipped | ✅ |
+| **Total** | **356 tests (2 skipped)** | **✅ ALL PASSING** |
 
-The 1 skipped test is `test_live_prometheus_integration_optional` — intentionally skipped when live Prometheus is not running locally.
+
+The 2 skipped tests (`test_live_prometheus_integration_optional`, `test_live_traffic_harness_scenarios_optional`) are intentionally skipped when live network services are not running locally.
+
 
 ---
 
@@ -146,8 +154,22 @@ The 1 skipped test is `test_live_prometheus_integration_optional` — intentiona
 - [x] `services/platform/app/services/evaluation/evaluator.py` — `DefaultHPAEvaluationService` executing deterministic comparative analysis, savings derivation (`pod_hours_saved_per_hour`), unnecessary scale-up signals, and detailed human-readable explanations.
 - [x] `services/platform/app/services/evaluation/factory.py` & `__init__.py` — Singleton provider factory and package exports.
 - [x] `services/platform/app/api/v1/endpoints.py` — Endpoints: `POST /api/v1/evaluation/evaluate` (direct context) and `GET /api/v1/evaluation/hpa-vs-sentinelscale` (latest or specific observation ID).
-- [x] `services/platform/tests/test_hpa_evaluation.py` — 9 comprehensive tests for alignment, attack suppression, proactive scaling, scale-down difference, low confidence, replay from history, and API endpoints.
-- [x] `docs/HPA_VS_SENTINELSCALE_EVALUATION.md` — Comprehensive evaluation layer documentation.
+### Stage F3: M2 Observation Dispatcher & Dynamic Demand Forecast Integration
+- [x] `services/platform/app/clients/demand_client.py` — Updated `fetch_forecast()` with `target_service`, `historical_window_seconds`, and `observations` parameter serialization, headers propagation (`X-Trace-ID`), and typed exception mapping.
+- [x] `services/platform/app/services/context_aggregator.py` — Integrated `DemandObservationAccumulator` into `ContextAggregatorService`, querying historical observations per workload window and dispatching to M2, followed by automated recording of incoming M1 `TrafficAssessment` records.
+- [x] `services/platform/tests/test_demand_dispatch.py` — 9 comprehensive unit and integration tests covering observation retrieval & dispatch, SQLite provenance, M2 schema conformance, response validation, trace propagation, empty history handling, error mapping, and hostile traffic filtering.
+- [x] `docs/STAGE_F3_M2_OBSERVATION_DISPATCH.md` — Formal Stage F3 specification and verification doc.
+
+### Stage F4: End-to-End Dynamic Scenario Suite
+- [x] `services/platform/tests/test_stage_f4_dynamic_scenarios.py` — 10 comprehensive tests verifying the end-to-end pipeline operating purely on dynamically generated HTTP traffic through Demo API, F1 Collector, M1 Assessment, F2 Accumulator, F3 Dispatcher, M2 Forecast, M3 Aggregator, Decision Engine, and Evaluator.
+- [x] Verified Scenario A (Steady Legitimate), Scenario B (Flash Crowd Surge), Scenario C (Hostile L7 Flood), and Scenario D (Mixed Traffic).
+- [x] Verified critical security invariant: Hostile L7 Flood traffic is rejected at F2 security gate and never enters historical demand store or M2 forecast.
+- [x] `docs/STAGE_F4_DYNAMIC_SCENARIOS.md` — Complete Stage F4 dynamic scenarios report and provenance matrix.
+
+### Stage F5: Comparative HPA vs SentinelScale Evaluation
+- [x] `services/platform/tests/test_stage_f5_comparative_evaluation.py` — 10 comprehensive tests evaluating comparative scaling decisions across all 4 dynamic scenarios using actual pipeline outputs and the deterministic `DefaultHPAEvaluationService`.
+- [x] Proven that SentinelScale prevents EDoS overprovisioning during Hostile L7 Floods (`SENTINELSCALE_PREVENTS_UNNECESSARY_SCALE`, saving 2–4 pod-hours/hr) while supporting legitimate business demand growth during Flash Crowd surges (`ALIGNED` / `SENTINELSCALE_PROACTIVELY_SCALES`).
+- [x] `docs/STAGE_F5_COMPARATIVE_EVALUATION.md` — Formal Stage F5 comparative evaluation report and matrix.
 
 ---
 

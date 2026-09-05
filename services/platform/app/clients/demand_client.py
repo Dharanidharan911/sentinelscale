@@ -1,10 +1,10 @@
 import time
-from typing import Optional
+from typing import List, Optional
 import httpx
 from pydantic import ValidationError
 from app.config.settings import settings
 from app.logging import logger
-from app.models.demand_contract import DemandForecast
+from app.models.demand_contract import DemandForecast, DemandObservation
 
 
 class UpstreamDemandIntelligenceError(Exception):
@@ -34,10 +34,20 @@ class DemandIntelligenceClient:
         self,
         forecast_horizon_seconds: int = 300,
         trace_id: Optional[str] = None,
+        target_service: Optional[str] = "demo-api",
+        historical_window_seconds: Optional[int] = 3600,
+        observations: Optional[list[DemandObservation]] = None,
     ) -> DemandForecast:
         endpoint_url = f"{self.base_url}/api/v1/demand/forecast"
         headers = {"X-Trace-ID": trace_id} if trace_id else {}
-        payload = {"forecast_horizon_seconds": forecast_horizon_seconds, "trace_id": trace_id}
+        payload = {
+            "forecast_horizon_seconds": forecast_horizon_seconds,
+            "target_service": target_service,
+            "trace_id": trace_id,
+            "historical_window_seconds": historical_window_seconds,
+        }
+        if observations is not None:
+            payload["observations"] = [obs.model_dump() for obs in observations]
 
         client = self._custom_client or httpx.AsyncClient(timeout=self.timeout_seconds)
         close_client = self._custom_client is None
