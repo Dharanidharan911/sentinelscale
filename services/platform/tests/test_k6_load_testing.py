@@ -72,3 +72,4 @@ def test_load_tests_readme_documentation():
     assert "baseline" in content
     assert "spike" in content
     assert "sustained" in content
+

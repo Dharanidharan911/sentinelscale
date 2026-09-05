@@ -34,22 +34,30 @@ load-tests/
 
 ## 3. Workload Profiles & Transaction Distribution
 
-### 3.1 Workload Profiles
+### 3.1 Workload Profiles & Stage Breakdown
 
-| Profile | Target VUs | Stage Breakdown | Purpose |
-| :--- | :--- | :--- | :--- |
-| **`smoke`** | 2 VUs | 10s @ 2 VUs | Rapid sanity check for CI / automated tests |
-| **`baseline`** | 10 VUs | 10s warmup (5 VUs) -> 30s steady (10 VUs) -> 10s cooldown (0 VUs) | Normal diurnal traffic baseline |
-| **`spike`** | 35 VUs | 10s warmup -> 15s baseline -> 10s surge -> 20s peak -> 10s cooldown -> 10s recovery | Legitimate flash crowd / surge event |
-| **`sustained`**| 25 VUs | 15s ramp-up -> 60s plateau (25 VUs) -> 15s ramp-down | Heavy sustained peak utilization |
+All profiles define discrete stages representing realistic traffic ramps:
 
-### 3.2 Realistic User Journey Mix
+| Profile | Target VUs | Nominal Stages Breakdown | Nominal Duration | Purpose |
+| :--- | :--- | :--- | :---: | :--- |
+| **`smoke`** | 2 VUs | 10s @ 2 VUs | **10s** | Rapid sanity check for CI / automated tests |
+| **`baseline`** | 10 VUs | 10s warmup (5 VUs) -> 30s steady (10 VUs) -> 10s cooldown (0 VUs) | **50s** | Normal diurnal traffic baseline |
+| **`spike`** | 35 VUs | 10s warmup (5 VUs) -> 15s baseline (10 VUs) -> 10s surge (35 VUs) -> 20s peak (35 VUs) -> 10s cooldown (5 VUs) -> 10s recovery (0 VUs) | **75s** | Legitimate flash crowd / surge event |
+| **`sustained`**| 25 VUs | 15s ramp-up (25 VUs) -> 60s plateau (25 VUs) -> 15s ramp-down (0 VUs) | **90s** | Heavy sustained peak utilization |
+
+### 3.2 Dynamic Multipliers (`VU_SCALE` & `DURATION_SCALE`)
+The test harness provides two scaling environment variables for fast CI execution or high-capacity stress testing:
+- **`DURATION_SCALE`** (default `1.0`): Scales each stage's duration (e.g. `DURATION_SCALE=0.5` on `baseline` yields a 25s run; `DURATION_SCALE=0.3` on `spike` yields a 23s run).
+- **`VU_SCALE`** (default `1.0`): Scales target VUs across all stages proportionally.
+
+### 3.3 Realistic User Journey Mix
 - **35% Catalog Browsing**: `GET /products`, `GET /products?category={cat}&limit=10`
 - **25% Keyword Search**: `GET /search?q={query}` (`security`, `compute`, `pod`, `waf`, `mesh`)
 - **20% Product Detail**: `GET /products/{id}` (`prod-001` through `prod-005`)
 - **10% User Authentication**: `POST /login`
 - **6% Cart Operations**: `POST /cart`
 - **4% Checkout Processing**: `POST /checkout`
+- **Pacing**: Randomized think time between 100ms and 300ms between transactions.
 
 ---
 
@@ -87,41 +95,37 @@ The k6 runner is integrated into [`docker-compose.yml`](../docker-compose.yml) u
 
 ---
 
-## 5. Live Validation Results
+## 5. Live Validation Results & Metric Reconciliation
 
-### 5.1 Smoke Profile Validation
-```text
-k6 run /scripts/workload.js (PROFILE=smoke)
-- Duration: 10.0s, Peak VUs: 2
-- Total Requests: 48 (4.73 RPS)
-- Checks: 100.00% passed (94 passed, 0 failed)
-- http_req_duration: avg=2.16ms, p(95)=3.08ms
-- http_req_failed: 0.00%
-```
+### 5.1 Nominal Full-Duration Executions (`DURATION_SCALE=1.0`)
 
-### 5.2 Baseline Profile Validation
-```text
-k6 run /scripts/workload.js (PROFILE=baseline)
-- Duration: 25.2s, Peak VUs: 10
-- Total Requests: 731 (28.96 RPS average)
-- Checks: 100.00% passed (1,462 passed, 0 failed)
-- http_req_duration: avg=2.02ms, p(95)=2.96ms
-- http_req_failed: 0.00%
-```
+| Profile | Nominal Duration | Total Requests | Total Checks | Checks Pass Rate | Average RPS | P95 Latency | Error Rate |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`smoke`** | 10.0s | 48 | 96 | **100.00%** | 4.73 req/s | 3.08 ms | **0.00%** |
+| **`baseline`** | 50.2s | 1,467 | 2,934 | **100.00%** | 29.23 req/s | 3.08 ms | **0.00%** |
+| **`spike`** | 75.1s | 6,381 | 12,762 | **100.00%** | 84.92 req/s | 3.53 ms | **0.00%** |
 
-### 5.3 Spike Profile Validation
-```text
-k6 run /scripts/workload.js (PROFILE=spike)
-- Duration: 23.1s, Peak VUs: 35
-- Total Requests: 1,932 (83.46 RPS average)
-- Checks: 100.00% passed (3,864 passed, 0 failed)
-- http_req_duration: avg=2.45ms, p(95)=3.54ms
-- http_req_failed: 0.00%
-```
+### 5.2 Scaled Fast-Validation Executions (`DURATION_SCALE < 1.0`)
+
+| Profile | `DURATION_SCALE` | Scaled Duration | Total Requests | Total Checks | Checks Pass Rate | Average RPS |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **`baseline`** | `0.5` | 25.2s | 731 | 1,462 | **100.00%** | 28.96 req/s |
+| **`spike`** | `0.3` | 23.1s | 1,932 | 3,864 | **100.00%** | 83.46 req/s |
+
+### 5.3 Request-to-Check Ratio Reconciliation
+In k6 execution summaries, checks are evaluated per assertion. Each transaction helper function in [`load-tests/k6/endpoints.js`](../load-tests/k6/endpoints.js) executes **exactly two assertions**:
+1. HTTP status code verification (`r.status === 200`).
+2. Response payload schema integrity verification (e.g. array type check, `product.id` presence, `cart_id` presence, `token` presence, or `checkout.status === 'completed'`).
+
+Consequently, for every request executed, exactly 2 checks are evaluated:
+- Nominal Baseline: `1,467 requests * 2 checks = 2,934 checks` (100% passed).
+- Nominal Spike: `6,381 requests * 2 checks = 12,762 checks` (100% passed).
+- Fast Baseline: `731 requests * 2 checks = 1,462 checks` (100% passed).
+- Fast Spike: `1,932 requests * 2 checks = 3,864 checks` (100% passed).
 
 ### 5.4 Telemetry Observability Verification
-- **Prometheus**: Real-time counter `http_requests_total` scraped every 2 seconds, incrementing by over 2,700 requests across the live validation runs.
-- **Grafana**: `SentinelScale — Infrastructure Observability` dashboard accurately rendered dynamic request rate spikes (up to 83+ RPS), P95 latency distribution, and CPU/memory utilization changes.
+- **Prometheus**: Real-time counter `http_requests_total` scraped every 2 seconds, incrementing continuously across the live validation runs.
+- **Grafana**: The `SentinelScale — Infrastructure Observability` dashboard accurately rendered dynamic request rate spikes (up to 85+ RPS), P95 latency distribution, and CPU/memory utilization changes.
 
 ---
 

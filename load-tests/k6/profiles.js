@@ -77,3 +77,4 @@ export function getProfileConfig(profileName = 'baseline') {
   const selected = profiles[profileName.toLowerCase()] || profiles.baseline;
   return selected;
 }
+
