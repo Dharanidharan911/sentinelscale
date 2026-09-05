@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sentinelscale.io/schemas/experiments/experiment_result.schema.json",
+  "title": "ExperimentResult",
+  "description": "Standardized schema for SentinelScale M3-8 HPA vs SentinelScale comparative experiment results.",
+  "type": "object",
+  "required": [
+    "run_id",
+    "scenario_id",
+    "scenario_name",
+    "start_time",
+    "end_time",
+    "duration_seconds",
+    "phases",
+    "workload_summary",
+    "hpa_summary",
+    "sentinelscale_summary",
+    "comparison_summary",
+    "performance_guardrails",
+    "safety"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "description": "Unique identifier for this experiment trial (e.g. EXP-20260906-001)"
+    },
+    "scenario_id": {
+      "type": "string",
+      "description": "Scenario configuration identifier"
+    },
+    "scenario_name": {
+      "type": "string",
+      "description": "Human-readable scenario name"
+    },
+    "start_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 experiment start timestamp"
+    },
+    "end_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 experiment end timestamp"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total duration of experiment trial in seconds"
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["phase_name", "timestamp", "elapsed_seconds"],
+        "properties": {
+          "phase_name": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "elapsed_seconds": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "workload_summary": {
+      "type": "object",
+      "required": ["total_requests", "average_rps", "peak_rps", "error_rate", "p50_latency_ms", "p95_latency_ms"],
+      "properties": {
+        "total_requests": { "type": "integer", "minimum": 0 },
+        "average_rps": { "type": "number", "minimum": 0 },
+        "peak_rps": { "type": "number", "minimum": 0 },
+        "error_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "p50_latency_ms": { "type": "number", "minimum": 0 },
+        "p95_latency_ms": { "type": "number", "minimum": 0 }
+      }
+    },
+    "hpa_summary": {
+      "type": "object",
+      "required": [
+        "initial_replicas",
+        "final_replicas",
+        "peak_replicas",
+        "min_replicas",
+        "pod_seconds",
+        "replica_hours"
+      ],
+      "properties": {
+        "initial_replicas": { "type": "integer", "minimum": 1 },
+        "final_replicas": { "type": "integer", "minimum": 1 },
+        "peak_replicas": { "type": "integer", "minimum": 1 },
+        "min_replicas": { "type": "integer", "minimum": 1 },
+        "scale_up_events_count": { "type": "integer", "minimum": 0 },
+        "scale_down_events_count": { "type": "integer", "minimum": 0 },
+        "scale_up_latency_seconds": { "type": ["number", "null"] },
+        "scale_down_latency_seconds": { "type": ["number", "null"] },
+        "pod_seconds": { "type": "number", "minimum": 0 },
+        "replica_hours": { "type": "number", "minimum": 0 }
+      }
+    },
+    "sentinelscale_summary": {
+      "type": "object",
+      "required": [
+        "initial_recommended_pods",
+        "final_recommended_pods",
+        "peak_recommended_pods",
+        "min_recommended_pods",
+        "pod_seconds",
+        "replica_hours",
+        "decisions_count",
+        "action_distribution"
+      ],
+      "properties": {
+        "initial_recommended_pods": { "type": "integer", "minimum": 1 },
+        "final_recommended_pods": { "type": "integer", "minimum": 1 },
+        "peak_recommended_pods": { "type": "integer", "minimum": 1 },
+        "min_recommended_pods": { "type": "integer", "minimum": 1 },
+        "pod_seconds": { "type": "number", "minimum": 0 },
+        "replica_hours": { "type": "number", "minimum": 0 },
+        "decisions_count": { "type": "integer", "minimum": 0 },
+        "action_distribution": {
+          "type": "object",
+          "additionalProperties": { "type": "integer" }
+        }
+      }
+    },
+    "comparison_summary": {
+      "type": "object",
+      "required": [
+        "pod_seconds_delta",
+        "replica_hours_delta",
+        "max_replica_difference",
+        "divergence_classification",
+        "performance_guardrails_passed"
+      ],
+      "properties": {
+        "pod_seconds_delta": { "type": "number" },
+        "replica_hours_delta": { "type": "number" },
+        "max_replica_difference": { "type": "integer" },
+        "divergence_classification": {
+          "type": "string",
+          "enum": ["agreement", "sentinelscale_recommends_fewer", "sentinelscale_recommends_more", "mixed"]
+        },
+        "performance_guardrails_passed": { "type": "boolean" }
+      }
+    },
+    "performance_guardrails": {
+      "type": "object",
+      "required": [
+        "p95_latency_guardrail_ms",
+        "observed_p95_latency_ms",
+        "error_rate_guardrail",
+        "observed_error_rate",
+        "guardrails_passed"
+      ],
+      "properties": {
+        "p95_latency_guardrail_ms": { "type": "number", "minimum": 0 },
+        "observed_p95_latency_ms": { "type": "number", "minimum": 0 },
+        "error_rate_guardrail": { "type": "number", "minimum": 0, "maximum": 1 },
+        "observed_error_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "guardrails_passed": { "type": "boolean" }
+      }
+    },
+    "safety": {
+      "type": "object",
+      "required": ["dry_run", "shadow_mode", "sentinel_mutations_count", "autonomous_actions_enabled"],
+      "properties": {
+        "dry_run": { "type": "boolean", "const": true },
+        "shadow_mode": { "type": "boolean", "const": true },
+        "sentinel_mutations_count": { "type": "integer", "const": 0 },
+        "autonomous_actions_enabled": { "type": "boolean", "const": false }
+      }
+    },
+    "timeseries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "timestamp",
+          "elapsed_seconds",
+          "hpa_replicas",
+          "hpa_desired_replicas",
+          "sentinelscale_recommended_pods",
+          "replica_delta"
+        ],
+        "properties": {
+          "timestamp": { "type": "string", "format": "date-time" },
+          "elapsed_seconds": { "type": "number", "minimum": 0 },
+          "request_rate": { "type": "number" },
+          "cpu_utilization": { "type": "number" },
+          "hpa_replicas": { "type": "integer", "minimum": 1 },
+          "hpa_desired_replicas": { "type": "integer", "minimum": 1 },
+          "sentinelscale_recommended_pods": { "type": "integer", "minimum": 1 },
+          "replica_delta": { "type": "integer" },
+          "sentinelscale_action": { "type": "string" },
+          "decision_reason": { "type": "string" }
+        }
+      }
+    }
+  }
+}

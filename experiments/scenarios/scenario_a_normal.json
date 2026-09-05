@@ -1,0 +1,27 @@
+{
+  "scenario_id": "scenario_a_normal",
+  "name": "Scenario A — Normal / Low Demand",
+  "description": "Evaluate controller stability and capacity preservation under normal baseline traffic.",
+  "target_namespace": "sentinelscale",
+  "target_workload": "demo-api",
+  "hpa_baseline": {
+    "name": "demo-api-hpa",
+    "min_replicas": 2,
+    "max_replicas": 5,
+    "target_cpu_utilization": 50
+  },
+  "workload": {
+    "profile": "normal",
+    "vu_scale": 1.0,
+    "duration_scale": 1.0,
+    "description": "10s warmup (5 VUs) -> 30s steady (8 VUs) -> 10s cooldown (0 VUs)"
+  },
+  "performance_guardrails": {
+    "max_p95_latency_ms": 1000.0,
+    "max_error_rate": 0.05
+  },
+  "signal_provenance": {
+    "traffic_intelligence": "fallback_or_live",
+    "demand_intelligence": "dynamic_forecast"
+  }
+}

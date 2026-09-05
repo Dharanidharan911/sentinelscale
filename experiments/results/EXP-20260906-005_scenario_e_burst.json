@@ -1,0 +1,303 @@
+{
+  "run_id": "EXP-20260906-005",
+  "scenario_id": "scenario_e_burst",
+  "scenario_name": "Scenario E \u2014 Burst / Abnormal Traffic",
+  "start_time": "2026-09-05T20:06:51.583294+00:00",
+  "end_time": "2026-09-05T20:08:07.390485+00:00",
+  "duration_seconds": 75.81,
+  "phases": [
+    {
+      "phase_name": "RESET",
+      "timestamp": "2026-09-05T20:06:51.583294+00:00",
+      "elapsed_seconds": 0.0
+    },
+    {
+      "phase_name": "WARMUP",
+      "timestamp": "2026-09-05T20:06:52.221217+00:00",
+      "elapsed_seconds": 0.64
+    },
+    {
+      "phase_name": "LOAD / DISTURBANCE",
+      "timestamp": "2026-09-05T20:07:03.436699+00:00",
+      "elapsed_seconds": 11.85
+    },
+    {
+      "phase_name": "PEAK / SUSTAINED PERIOD",
+      "timestamp": "2026-09-05T20:07:20.077017+00:00",
+      "elapsed_seconds": 28.49
+    },
+    {
+      "phase_name": "RECOVERY",
+      "timestamp": "2026-09-05T20:07:49.009648+00:00",
+      "elapsed_seconds": 57.43
+    },
+    {
+      "phase_name": "FINAL OBSERVATION",
+      "timestamp": "2026-09-05T20:08:07.390485+00:00",
+      "elapsed_seconds": 75.81
+    }
+  ],
+  "workload_summary": {
+    "total_requests": 3867,
+    "average_rps": 76.910307,
+    "peak_rps": 115.37,
+    "error_rate": 0.0,
+    "p50_latency_ms": 7.05,
+    "p95_latency_ms": 20.03
+  },
+  "hpa_summary": {
+    "initial_replicas": 2,
+    "final_replicas": 2,
+    "peak_replicas": 2,
+    "min_replicas": 2,
+    "scale_up_events_count": 0,
+    "scale_down_events_count": 0,
+    "scale_up_latency_seconds": null,
+    "scale_down_latency_seconds": null,
+    "pod_seconds": 150.32,
+    "replica_hours": 0.0418
+  },
+  "sentinelscale_summary": {
+    "initial_recommended_pods": 2,
+    "final_recommended_pods": 2,
+    "peak_recommended_pods": 2,
+    "min_recommended_pods": 2,
+    "pod_seconds": 150.32,
+    "replica_hours": 0.0418,
+    "decisions_count": 19,
+    "action_distribution": {
+      "HOLD": 19
+    }
+  },
+  "comparison_summary": {
+    "pod_seconds_delta": 0.0,
+    "replica_hours_delta": 0.0,
+    "max_replica_difference": 0,
+    "divergence_classification": "agreement",
+    "performance_guardrails_passed": true
+  },
+  "performance_guardrails": {
+    "p95_latency_guardrail_ms": 2000.0,
+    "observed_p95_latency_ms": 20.03,
+    "error_rate_guardrail": 0.1,
+    "observed_error_rate": 0.0,
+    "guardrails_passed": true
+  },
+  "safety": {
+    "dry_run": true,
+    "shadow_mode": true,
+    "sentinel_mutations_count": 0,
+    "autonomous_actions_enabled": false
+  },
+  "timeseries": [
+    {
+      "timestamp": "2026-09-05T20:06:53.014880+00:00",
+      "elapsed_seconds": 0.65,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 2,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:06:56.669463+00:00",
+      "elapsed_seconds": 4.43,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 2,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:00.436262+00:00",
+      "elapsed_seconds": 8.09,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 2,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:04.281788+00:00",
+      "elapsed_seconds": 11.85,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 2,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:08.751645+00:00",
+      "elapsed_seconds": 15.7,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 2,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:12.823982+00:00",
+      "elapsed_seconds": 20.17,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 2,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:17.076309+00:00",
+      "elapsed_seconds": 24.24,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 2,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:21.349881+00:00",
+      "elapsed_seconds": 28.49,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 2,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:25.472998+00:00",
+      "elapsed_seconds": 32.77,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 35,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:29.583293+00:00",
+      "elapsed_seconds": 36.89,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 35,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:33.799646+00:00",
+      "elapsed_seconds": 41.0,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 35,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:38.137419+00:00",
+      "elapsed_seconds": 45.22,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 35,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:42.147032+00:00",
+      "elapsed_seconds": 49.55,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 35,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:46.007676+00:00",
+      "elapsed_seconds": 53.56,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 35,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:52.821514+00:00",
+      "elapsed_seconds": 60.43,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 35,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:07:56.535250+00:00",
+      "elapsed_seconds": 64.24,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 35,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:08:00.158261+00:00",
+      "elapsed_seconds": 67.95,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 35,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:08:03.765175+00:00",
+      "elapsed_seconds": 71.58,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 35,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    },
+    {
+      "timestamp": "2026-09-05T20:08:07.390423+00:00",
+      "elapsed_seconds": 75.18,
+      "hpa_replicas": 2,
+      "hpa_desired_replicas": 2,
+      "hpa_cpu_percent": 35,
+      "sentinelscale_recommended_pods": 2,
+      "replica_delta": 0,
+      "sentinelscale_action": "HOLD",
+      "decision_reason": "High security risk (0.79) detected with suspicious traffic. Predicted legitimate demand (525.0 RPS) is within current capacity (700.0 RPS). Prevented reactive overprovisioning of 0 pods."
+    }
+  ]
+}

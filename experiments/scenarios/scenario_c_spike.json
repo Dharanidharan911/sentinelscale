@@ -1,0 +1,27 @@
+{
+  "scenario_id": "scenario_c_spike",
+  "name": "Scenario C — Sudden Spike",
+  "description": "Determine response to a rapid surge in demand and compare scale-up latency and recommendation difference.",
+  "target_namespace": "sentinelscale",
+  "target_workload": "demo-api",
+  "hpa_baseline": {
+    "name": "demo-api-hpa",
+    "min_replicas": 2,
+    "max_replicas": 5,
+    "target_cpu_utilization": 50
+  },
+  "workload": {
+    "profile": "spike",
+    "vu_scale": 1.0,
+    "duration_scale": 1.0,
+    "description": "10s warmup -> 10s baseline (10 VUs) -> 10s rapid surge (35 VUs) -> 20s peak (35 VUs) -> 10s cooldown -> 10s teardown"
+  },
+  "performance_guardrails": {
+    "max_p95_latency_ms": 2000.0,
+    "max_error_rate": 0.10
+  },
+  "signal_provenance": {
+    "traffic_intelligence": "fallback_or_live",
+    "demand_intelligence": "dynamic_forecast"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "scenario_id": "scenario_b_sustained_high",
+  "name": "Scenario B — Sustained High Demand",
+  "description": "Determine how HPA and SentinelScale respond to sustained elevated legitimate demand.",
+  "target_namespace": "sentinelscale",
+  "target_workload": "demo-api",
+  "hpa_baseline": {
+    "name": "demo-api-hpa",
+    "min_replicas": 2,
+    "max_replicas": 5,
+    "target_cpu_utilization": 50
+  },
+  "workload": {
+    "profile": "sustained_high",
+    "vu_scale": 1.0,
+    "duration_scale": 1.0,
+    "description": "15s ramp up (25 VUs) -> 45s sustained (30 VUs) -> 15s ramp down (0 VUs)"
+  },
+  "performance_guardrails": {
+    "max_p95_latency_ms": 1500.0,
+    "max_error_rate": 0.05
+  },
+  "signal_provenance": {
+    "traffic_intelligence": "fallback_or_live",
+    "demand_intelligence": "dynamic_forecast"
+  }
+}

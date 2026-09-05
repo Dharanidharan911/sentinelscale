@@ -39,6 +39,7 @@
 | **Stage M3-5** | **Live Kubernetes Runtime & Service Orchestration** | **✅ COMPLETE** |
 | **Stage M3-6** | **Kubernetes Resource Intelligence & Telemetry Normalization** | **✅ COMPLETE** |
 | **Stage M3-7** | **Real Kubernetes HPA Baseline Controller** | **✅ COMPLETE** |
+| **Stage M3-8** | **HPA vs SentinelScale Experimentation** | **✅ COMPLETE** |
 
 ---
 
@@ -54,8 +55,8 @@ python run_tests.py
 | **Demo API** | 9 passed | ✅ |
 | **Traffic Intelligence (M1)** | 5 passed | ✅ |
 | **Demand Intelligence (M2)** | 100 passed | ✅ |
-| **Platform & Decision Engine (M3)** | 289 passed, 2 skipped | ✅ |
-| **Total** | **403 passed, 2 skipped** | **✅ ALL PASSING** |
+| **Platform & Decision Engine (M3)** | 296 passed, 2 skipped | ✅ |
+| **Total** | **410 passed, 2 skipped** | **✅ ALL PASSING** |
 
 ---
 
@@ -164,6 +165,9 @@ python run_tests.py
 
 ### Stage M3-7: Real Kubernetes HPA Baseline Controller
 - [x] `infrastructure/kubernetes/demo-api/hpa.yaml`, `infrastructure/kubernetes/platform/rbac.yaml`, `services/platform/tests/test_hpa_manifests.py` & `docs/STAGE_M3_7_REAL_HPA.md` — Established real Kubernetes HPA (`autoscaling/v2`) targeting `demo-api` (min 2, max 5, 50% CPU), deployed `metrics-server` with `--kubelet-insecure-tls`, empirically validated controlled scale-up (2 to 4 pods) under k6 load and scale-down (4 to 2 pods) upon load removal, verified live SentinelScale shadow observation, read-only RBAC permissions, and preserved 0 platform scaling mutations.
+
+### Stage M3-8: HPA vs SentinelScale Experimentation
+- [x] `contracts/experiments/experiment_result.schema.json`, `experiments/scenarios/`, `experiments/harness.py`, `experiments/run_experiment.py`, `services/platform/tests/test_experiment_harness.py` & `docs/STAGE_M3_8_HPA_VS_SENTINELSCALE_EXPERIMENTATION.md` — Established reproducible comparative experimentation framework between native Kubernetes HPA and SentinelScale shadow recommendations. Executed all 5 canonical scenarios (Normal, Sustained High, Sudden Spike, Recovery, Burst) plus repeated spike trial, capturing timestamp-aligned pod-seconds, replica-hours, latency/error guardrails, and decision divergence with zero SentinelScale scaling mutations.
 
 ---
 
