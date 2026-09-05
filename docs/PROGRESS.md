@@ -1,7 +1,7 @@
 # Implementation Progress — SentinelScale
 
 > Last updated: 2026-09-05
-> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (357 passed, 1 skipped)
+> Verified test baseline: `python run_tests.py` — ALL 4 SUITES PASSING (362 passed)
 
 ---
 
@@ -33,6 +33,7 @@
 | **Stage F6** | **Final Live Multi-Process Validation (All 4 Services Live)** | **✅ COMPLETE WITH LIMITATIONS** |
 | **Stage M3-0** | **Member 3 Platform Baseline & Audit** | **✅ COMPLETE** |
 | **Stage M3-1** | **Prometheus Live Observability Integration** | **✅ COMPLETE** |
+| **Stage M3-2** | **Grafana Foundation & Infrastructure Observability** | **✅ COMPLETE** |
 
 ---
 
@@ -48,10 +49,8 @@ python run_tests.py
 | **Demo API** | 9 passed | ✅ |
 | **Traffic Intelligence (M1)** | 5 passed | ✅ |
 | **Demand Intelligence (M2)** | 100 passed | ✅ |
-| **Platform & Decision Engine (M3)** | 243 passed, 1 skipped | ✅ |
-| **Total** | **357 passed (1 skipped)** | **✅ ALL PASSING** |
-
-*Note on skipped test*: `test_prometheus_live_integration.py` is cleanly skipped when a live external Prometheus server is not reachable on `http://localhost:9090`. `test_traffic_harness_live.py` automatically passes when live microservices are running on ports 8000 and 8001.
+| **Platform & Decision Engine (M3)** | 248 passed | ✅ |
+| **Total** | **362 passed** | **✅ ALL PASSING** |
 
 ---
 
@@ -136,6 +135,15 @@ python run_tests.py
 
 ### Stage F6: Final Live Multi-Process Validation
 - [x] `scripts/validate_stage_f6_live.py` & `docs/STAGE_F6_LIVE_VALIDATION.md` — Validated all 4 microservices running as independent operating system processes communicating over live HTTP (`:8000`, `:8001`, `:8002`, `:8003`), verifying security gating, demand provenance, unpoisoned forecasting, trace continuity, and zero Kubernetes mutations.
+
+### Stage M3-0: Member 3 Platform Baseline & Audit
+- [x] `docs/STAGE_M3_0_PLATFORM_BASELINE.md` — Complete baseline audit of Platform service, contracts, settings, and test isolation.
+
+### Stage M3-1: Prometheus Live Observability Integration
+- [x] `telemetry/prometheus/prometheus.yml` & `docs/STAGE_M3_1_PROMETHEUS_LIVE_OBSERVABILITY.md` — Live Prometheus v2.50.1 server validation, scraping `/metrics`, real PromQL queries, and Prometheus-backed ResourceState evaluation.
+
+### Stage M3-2: Grafana Foundation & Infrastructure Observability
+- [x] `docker-compose.yml`, `telemetry/grafana/`, `services/platform/tests/test_grafana_provisioning.py` & `docs/STAGE_M3_2_GRAFANA_FOUNDATION.md` — Added Grafana 10.4.1 to Docker Compose on `:3000`, automated Prometheus datasource provisioning (`http://prometheus:9090`), auto-provisioned Infrastructure Observability Dashboard (`sentinelscale-infra-obs`) with 8 PromQL panels, and verified live queries with real HTTP traffic.
 
 ---
 

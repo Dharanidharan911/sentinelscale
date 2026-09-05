@@ -3,6 +3,7 @@ global:
   evaluation_interval: 2s
 
 scrape_configs:
+  # Primary authoritative scrape job for Docker Compose / Kubernetes container network
   - job_name: 'sentinelscale-services'
     metrics_path: '/metrics'
     static_configs:
@@ -11,14 +12,19 @@ scrape_configs:
           - 'traffic-intelligence:8001'
           - 'demand-intelligence:8002'
           - 'platform:8003'
+        labels:
+          environment: 'production'
+          cluster: 'sentinelscale-cluster'
+
+  # Secondary fallback scrape job for standalone local host development without containers
+  - job_name: 'sentinelscale-local-dev'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets:
           - '127.0.0.1:8000'
           - '127.0.0.1:8001'
           - '127.0.0.1:8002'
           - '127.0.0.1:8003'
-          - 'localhost:8000'
-          - 'localhost:8001'
-          - 'localhost:8002'
-          - 'localhost:8003'
         labels:
           environment: 'development'
           cluster: 'sentinelscale-local'
