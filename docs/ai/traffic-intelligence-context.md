@@ -42,20 +42,23 @@
   - All outputs validated against `contracts/traffic/traffic_assessment.schema.json`.
 
 ## 6. Completed Phases
-- **Phase 0**: Bootstrap verification and test harness setup.
-- **Phase 1**: Implementation of deterministic intelligence pipeline (`traffic-rules-v1`), including 6 realistic benchmark scenario test suites and API validation.
+- **Phase M1-0 (Baseline Audit)**: Complete audit of existing architecture, pipeline, scoring, contract conformance, and tests. Output: `docs/M1_BASELINE_AUDIT.md`.
+- **Phase M1-1 (Feature Specification)**: Rigorous formal specification of all available and unavailable traffic features across volume, client, HTTP, and temporal categories. Output: `docs/TRAFFIC_INTELLIGENCE_SPEC.md`.
+- **Phase M1-2 (Reproducible Experiment Dataset)**: Deterministic synthetic dataset generator parameterized across canonical scenarios A, B, C, D with scenario-derived labels (`LEGITIMATE`, `MALICIOUS`, `MIXED`). Output: `services/traffic-intelligence/tools/generate_dataset.py`.
+- **Phase M1-3 (Baseline Benchmark)**: Quantitative benchmarking of the heuristic engine across 1,000 observations measuring precision, recall, F1, FPR, FNR, confusion matrix, and sub-millisecond latency ($20.6\ \mu\text{s}$). Output: `docs/TRAFFIC_MODEL_BASELINE.md` and `services/traffic-intelligence/tools/benchmark.py`.
 
 ## 7. Remaining Phases
-- **Phase 2**: Synthetic telemetry dataset generator and offline benchmark suite.
-- **Phase 3**: Machine Learning model integration (Isolation Forest / XGBoost) with deterministic rule fallback.
-- **Phase 4**: Prometheus telemetry collector client (ingesting real API gateway metrics).
+- **Phase M1-4**: Machine Learning model exploration (Isolation Forest / Unsupervised Anomaly Detection) integrated alongside the heuristic rules.
+- **Phase M1-5**: Hybrid scoring and confidence calibration (combining rules + ML evidence).
+- **Phase M1-6**: Live Prometheus telemetry collector client (ingesting real API gateway metrics).
 
 ## 8. Test & Verification Status
-- All 18 Traffic Intelligence unit and scenario tests pass.
-- All 4 microservices pass in repository test runner (`python run_tests.py` -> 43 total passed).
-- Test execution command:
+- All 21 Traffic Intelligence unit, contract, scenario, and benchmark tests pass.
+- All 4 microservices pass in repository test runner (`python run_tests.py` -> 46 total passed).
+- Test execution commands:
   ```powershell
   python -m pytest services/traffic-intelligence/tests -v -o pythonpath=services/traffic-intelligence
+  python services/traffic-intelligence/tools/benchmark.py --samples-per-scenario 250 --seed 42
   ```
 
 ## 9. Integration Notes for Member 2 & Member 3
