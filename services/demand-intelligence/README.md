@@ -105,16 +105,23 @@ Forecasting Engine             ← RWMA + linear trend + confidence scoring
 DemandForecast (v1.0.0)
 ```
 
-### Forecasting Algorithm
+### Forecasting Engines
 
-**Model**: `demand-v1` — Recency-Weighted Moving Average + Linear Trend Projection
-
+#### 1. Baseline Engine (`demand-v1` — Default)
+Recency-Weighted Moving Average + Linear Trend Projection:
 1. **Validate & preprocess** observations (sort, deduplicate, reject invalid)
 2. **Weighted mean** — most recent observations weighted heavier (`decay=0.85`)
 3. **Trend detection** — linear regression slope over cleaned series
-4. **Trend projection** — if ≥ 5 observations, extrapolate trend over `forecast_horizon_seconds`
+4. **Trend projection** — if ≥ 5 observations, extrapolate trend over `forecast_horizon_seconds` (capped to prevent runaway extrapolation)
 5. **Prediction interval** — ±1.5 × historical std-dev around point estimate
-6. **Confidence** — based on sample count and coefficient of variation
+6. **Confidence** — based on sample count, variance, horizon ratio, and sampling regularity
+
+#### 2. ML Candidate Engine (`demand-ml-v1` — Configurable Opt-In)
+Feature-Engineered Regularized Ridge Linear Regression:
+1. **Feature Engineering (M2-4)**: `app/engine/features.py` extracts 12 deterministic, leakage-safe features (`recent_demand`, lags 1–2, short/full rolling statistics, trend slope, rate of change, acceleration, cadence regularity, horizon ratio).
+2. **Ridge Forecaster (M2-5)**: `app/engine/ml_forecaster.py` fits local autoregressive dynamics via closed-form Ridge estimator ($\alpha = 1.0$).
+3. **Fallback Safety**: If observations are fewer than 4 or if numerical anomalies occur, gracefully falls back to baseline `demand-v1`.
+4. **Configuration (M2-7)**: Activated via `FORECAST_MODEL=ml` or `FORECAST_MODEL=demand-ml-v1`.
 
 ### Confidence Semantics
 
@@ -137,31 +144,32 @@ uvicorn app.main:app --port 8002 --reload
 
 Service docs: http://localhost:8002/docs
 
-### Prometheus Demand Provider
-
-Set `DEMAND_PROMETHEUS_URL` with Docker Compose (or `PROMETHEUS_URL` when
-running directly) to enable the real telemetry provider. It calls
-`/api/v1/query_range` with a five-second default timeout. `PROMETHEUS_QUERY`
-may override the default query and may contain `{target_service}`.
+### Model & Telemetry Configuration
 
 ```env
+# Engine selection: "baseline" (demand-v1, default) or "ml" (demand-ml-v1)
+FORECAST_MODEL=baseline
+ML_RIDGE_ALPHA=1.0
+
+# Optional Prometheus provider
 DEMAND_PROMETHEUS_URL=http://prometheus:9090
 DEMAND_PROMETHEUS_QUERY=sum(rate(http_requests_total{service="{target_service}"}[1m]))
 PROMETHEUS_STEP_SECONDS=30
 PROMETHEUS_TIMEOUT_SECONDS=5
 ```
 
-The query must return RPS matrix samples. An empty successful response is no
-data and yields the existing insufficient-data error; unreachable or malformed
-telemetry yields `503 provider_unavailable`, never a zero-demand forecast.
+---
 
-### Observation Quality Rules
+## Running Benchmarks (M2-6)
 
-Observations must have finite, positive Unix timestamps and finite,
-non-negative RPS values. Timestamps more than 60 seconds ahead of the service
-clock are rejected by default; configure `OBSERVATION_MAX_FUTURE_SKEW_SECONDS`
-when telemetry producers have a known clock offset. These failures are invalid
-data, not legitimate zero demand.
+Run the reproducible benchmark suite comparing baseline vs ML candidate:
+
+```bash
+# From services/demand-intelligence/ or root:
+python -m benchmarks.benchmark_suite
+```
+
+Findings: Baseline (`demand-v1`) achieved 54.19 RPS MAE vs ML candidate (`demand-ml-v1`) 180.43 RPS MAE across 6 synthetic scenarios due to surge-damping properties during flash surges. Baseline remains the production default. Full report in `benchmarks/BENCHMARK_REPORT.md`.
 
 ---
 
@@ -172,7 +180,7 @@ data, not legitimate zero demand.
 python -m pytest services/demand-intelligence/tests -v -o "pythonpath=services/demand-intelligence"
 ```
 
-**Expected result:** 74 tests passing, 0 failing.
+**Expected result:** 121 tests passing, 0 failing.
 
 ---
 
