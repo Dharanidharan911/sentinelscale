@@ -1,0 +1,7 @@
+- [x] **Phase 5: Configurable Forecasting**
+  - [x] Move hard-coded parameters to `app/config/settings.py`
+  - [x] Refactor `app/engine/forecaster.py` to use `settings`
+  - [x] Refactor tests to rely on `settings` rather than hard-coded constants
+  - [x] Update `docs/implementation_context.md`
+  - [x] Commit and push changes
+  - [x] Create annotated tag `member2-v1.2-configurable-forecasting`

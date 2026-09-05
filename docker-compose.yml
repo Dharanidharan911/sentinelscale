@@ -51,6 +51,7 @@ services:
       - ENVIRONMENT=${ENVIRONMENT:-development}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - PORT=8002
+      - PROMETHEUS_URL=${DEMAND_PROMETHEUS_URL:-}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health')"]
       interval: 10s
