@@ -34,6 +34,7 @@
 | **Stage M3-0** | **Member 3 Platform Baseline & Audit** | **✅ COMPLETE** |
 | **Stage M3-1** | **Prometheus Live Observability Integration** | **✅ COMPLETE** |
 | **Stage M3-2** | **Grafana Foundation & Infrastructure Observability** | **✅ COMPLETE** |
+| **Stage M3-3** | **Docker Compose Productionization & Validation** | **✅ COMPLETE** |
 
 ---
 
@@ -49,8 +50,8 @@ python run_tests.py
 | **Demo API** | 9 passed | ✅ |
 | **Traffic Intelligence (M1)** | 5 passed | ✅ |
 | **Demand Intelligence (M2)** | 100 passed | ✅ |
-| **Platform & Decision Engine (M3)** | 248 passed | ✅ |
-| **Total** | **362 passed** | **✅ ALL PASSING** |
+| **Platform & Decision Engine (M3)** | 251 passed | ✅ |
+| **Total** | **365 passed** | **✅ ALL PASSING** |
 
 ---
 
@@ -144,6 +145,9 @@ python run_tests.py
 
 ### Stage M3-2: Grafana Foundation & Infrastructure Observability
 - [x] `docker-compose.yml`, `telemetry/grafana/`, `services/platform/tests/test_grafana_provisioning.py` & `docs/STAGE_M3_2_GRAFANA_FOUNDATION.md` — Added Grafana 10.4.1 to Docker Compose on `:3000`, automated Prometheus datasource provisioning (`http://prometheus:9090`), auto-provisioned Infrastructure Observability Dashboard (`sentinelscale-infra-obs`) with 8 PromQL panels, and verified live queries with real HTTP traffic.
+
+### Stage M3-3: Docker Compose Productionization & Validation
+- [x] `docker-compose.yml`, `telemetry/prometheus/prometheus.yml`, `services/platform/Dockerfile`, `services/platform/tests/test_docker_compose_productionization.py` & `docs/STAGE_M3_3_DOCKER_COMPOSE_PRODUCTIONIZATION.md` — Productionized 6-service Docker Compose stack, healthcheck readiness gates, authoritative Prometheus scrape targets, non-root SQLite database permissions, and verified live inter-service container orchestration.
 
 ---
 
