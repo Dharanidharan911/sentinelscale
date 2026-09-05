@@ -38,6 +38,7 @@
 | **Stage M3-4** | **k6 Load Testing Harness** | **✅ COMPLETE** |
 | **Stage M3-5** | **Live Kubernetes Runtime & Service Orchestration** | **✅ COMPLETE** |
 | **Stage M3-6** | **Kubernetes Resource Intelligence & Telemetry Normalization** | **✅ COMPLETE** |
+| **Stage M3-7** | **Real Kubernetes HPA Baseline Controller** | **✅ COMPLETE** |
 
 ---
 
@@ -53,8 +54,8 @@ python run_tests.py
 | **Demo API** | 9 passed | ✅ |
 | **Traffic Intelligence (M1)** | 5 passed | ✅ |
 | **Demand Intelligence (M2)** | 100 passed | ✅ |
-| **Platform & Decision Engine (M3)** | 286 passed, 2 skipped | ✅ |
-| **Total** | **400 passed, 2 skipped** | **✅ ALL PASSING** |
+| **Platform & Decision Engine (M3)** | 289 passed, 2 skipped | ✅ |
+| **Total** | **403 passed, 2 skipped** | **✅ ALL PASSING** |
 
 ---
 
@@ -160,6 +161,9 @@ python run_tests.py
 
 ### Stage M3-6: Kubernetes Resource Intelligence & Telemetry Normalization
 - [x] `services/platform/app/services/telemetry/kubernetes_provider.py`, `hybrid_provider.py`, `quantity_parser.py`, `services/platform/tests/test_kubernetes_resource_intelligence_live.py` & `docs/STAGE_M3_6_KUBERNETES_RESOURCE_INTELLIGENCE.md` — Implemented live Kubernetes resource observation via REST API, robust CPU/Memory quantity parsing, read-only RBAC scoping, live Prometheus denominator normalization, and full JSON Schema conformance for `ResourceState`.
+
+### Stage M3-7: Real Kubernetes HPA Baseline Controller
+- [x] `infrastructure/kubernetes/demo-api/hpa.yaml`, `infrastructure/kubernetes/platform/rbac.yaml`, `services/platform/tests/test_hpa_manifests.py` & `docs/STAGE_M3_7_REAL_HPA.md` — Established real Kubernetes HPA (`autoscaling/v2`) targeting `demo-api` (min 2, max 5, 50% CPU), deployed `metrics-server` with `--kubelet-insecure-tls`, empirically validated controlled scale-up (2 to 4 pods) under k6 load and scale-down (4 to 2 pods) upon load removal, verified live SentinelScale shadow observation, read-only RBAC permissions, and preserved 0 platform scaling mutations.
 
 ---
 
