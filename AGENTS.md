@@ -139,9 +139,9 @@ Each service runs with its own isolated `PYTHONPATH` — never mix service roots
 ### Current Test Baseline (verified passing)
 - Demo API: **9 passed**
 - Traffic Intelligence: **5 passed**
-- Demand Intelligence: **5 passed**
-- Platform & Decision Engine: **44 passed, 1 skipped**
-- **Total: 63 tests passing**
+- Demand Intelligence: **100 passed**
+- Platform & Decision Engine: **243 passed, 1 skipped**
+- **Total: 357 tests passing (1 skipped)**
 
 ---
 

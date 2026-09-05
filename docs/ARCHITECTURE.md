@@ -1,13 +1,15 @@
 # Architecture — SentinelScale
 
-> Last updated: 2026-09-01
-> Source of truth: actual source code in this repository
+> Last updated: 2026-09-05
+> Source of truth: actual source code and verified tests in this repository
 
 ---
 
 ## 1. Overview
 
-SentinelScale is a multi-microservice platform composed of three intelligence modules plus a demo workload. All modules communicate exclusively through versioned JSON Schema contracts enforced by Pydantic v2. There is no shared database, no message broker, and no shared code between services.
+SentinelScale is a multi-microservice platform composed of three intelligence modules plus a target demo workload. All modules communicate exclusively through versioned HTTP/JSON Schema contracts enforced by Pydantic v2.
+
+There is no shared cross-service database, no message broker, and no direct Python imports across service boundaries at runtime.
 
 ---
 
@@ -16,35 +18,37 @@ SentinelScale is a multi-microservice platform composed of three intelligence mo
 ```mermaid
 graph TD
     subgraph Ingress
-        Traffic[API Traffic] --> GW[API Gateway / Ingress]
-        GW --> DemoAPI[demo-api :8000]
+        Traffic[API Traffic] --> DemoAPI[demo-api :8000]
+        DemoAPI --> Collector[Telemetry Collector]
     end
 
     subgraph Observability
-        GW --> Prom[Prometheus :9090]
-        DemoAPI --> |"/metrics"| Prom
+        DemoAPI --> |"/metrics"| Prom[Prometheus :9090]
     end
 
-    subgraph SentinelScale Modules
-        Prom --> M1[Module 1: Traffic Intelligence :8001]
-        Prom --> M2[Module 2: Demand Intelligence :8002]
+    subgraph SentinelScale Closed-Loop Pipeline
+        Collector --> |"TrafficTelemetryInput"| M1[Module 1: Traffic Intelligence :8001]
+        M1 --> |"TrafficAssessment"| Accumulator[F2 Demand Accumulator (SQLite)]
+        Accumulator --> |"DemandObservation[]"| M2[Module 2: Demand Intelligence :8002]
+
         Prom --> M3Obs[Module 3: Resource Observer]
 
-        M1 --> |"TrafficAssessment"| M3Dec
-        M2 --> |"DemandForecast"| M3Dec
-        M3Obs --> |"ResourceState"| M3Dec
+        M1 --> |"TrafficAssessment"| M3Context[Decision Context Aggregator]
+        M2 --> |"DemandForecast"| M3Context
+        M3Obs --> |"ResourceState"| M3Context
 
         subgraph Module 3 - Platform :8003
-            M3Obs[Resource Observer] --> M3Dec[Decision Engine]
-            M3Dec --> Guard[Policy Guardrails]
+            M3Context --> DE[Decision Engine]
+            DE --> Guard[Policy Guardrails]
             Guard --> Decision[ScalingDecision]
+            M3Context --> Evaluator[HPA vs SentinelScale Evaluator]
+            Evaluator --> EvalResult[EvaluationResult]
         end
     end
 
     subgraph Output
-        Decision --> |"shadow_mode=true dry_run=true"| Shadow[Shadow Evaluation / Logs]
-        Decision -.- |"future"| K8s[Kubernetes API]
-        Decision -.- |"future"| GWAction[Gateway Rate Limiting]
+        Decision --> |"dry_run=true shadow_mode=true"| Shadow[Shadow Evaluation / Logs]
+        EvalResult --> |"pod_hours_saved divergence"| Metrics[Prometheus Metrics / Audit Store]
     end
 ```
 
@@ -54,85 +58,93 @@ graph TD
 
 ### Module 1: Traffic Intelligence (`services/traffic-intelligence/`)
 
-**Responsibility**: Ingests API traffic telemetry, scores security risk, classifies traffic.
+**Responsibility**: Evaluates incoming API traffic telemetry and extracts behavioral features to assess security risk and derive legitimate vs. suspicious RPS estimates.
 
-**Current implementation state**: Mock (traffic-v0)
-- `TrafficAssessmentService` delegates to `MockTrafficDataGenerator`
-- Returns deterministic `TrafficAssessment` with fixed values: `risk_score=0.84`, `classification=suspicious`, `total_rps=2500`, `legitimate_rps_estimate=850`
+**Implementation**: `traffic-rules-v1`
+- Analyzes burstiness ratios, client IP concentration ratios, non-standard User-Agent proportions, error rates, and endpoint dispersion.
+- Categorizes traffic into `legitimate`, `suspicious`, or `malicious`.
+- Computes `legitimate_rps_estimate`, `risk_score`, `legitimacy_score`, and `confidence`.
 
-**Future architectural responsibilities** (documented in ARCHITECTURE.md):
-- Real telemetry ingestion: request rates, status codes, header distributions
-- Feature extraction: burstiness coefficients, IP entropy, user-agent entropy
-- ML classification: XGBoost / Isolation Forest risk scoring
-- Explainability signals
-
-**Public contract output**: `TrafficAssessment` → `contracts/traffic/traffic_assessment.schema.json`
+**Public Contract**: `TrafficAssessment` → [`contracts/traffic/traffic_assessment.schema.json`](contracts/traffic/traffic_assessment.schema.json)
 
 ---
 
 ### Module 2: Demand Intelligence (`services/demand-intelligence/`)
 
-**Responsibility**: Independently forecasts future legitimate workload demand. Does NOT depend synchronously on Module 1.
+**Responsibility**: Forecasts future legitimate workload demand independently from security classifications using historical time-series demand observations.
 
-**Current implementation state**: Mock (demand-v0)
-- `DemandForecastingService` delegates to `MockDemandDataGenerator`
-- Returns deterministic `DemandForecast` with fixed: `predicted_legitimate_rps=1200`, `confidence=0.91`
+**Implementation**: `demand-v1`
+- Algorithm: **Recency-Weighted Moving Average + Linear Trend Projection**.
+- Ingests chronological `DemandObservation[]` records derived from authenticated legitimate demand history.
+- Produces bounded predictions: `lower_bound_rps <= predicted_legitimate_rps <= upper_bound_rps`.
+- Calculates composite confidence based on sample count, coefficient of variation, sampling regularity, and forecast horizon.
 
-**Future architectural responsibilities** (documented in ARCHITECTURE.md):
-- Time-series decomposition: trends, seasonality, promotional spikes
-- Probabilistic forecasting with lower/upper bounds across multiple horizons
-- Asynchronous operation — no runtime dependency on Module 1
-
-**Public contract output**: `DemandForecast` → `contracts/demand/demand_forecast.schema.json`
+**Public Contract**: `DemandForecast` → [`contracts/demand/demand_forecast.schema.json`](contracts/demand/demand_forecast.schema.json)
 
 ---
 
-### Module 3: Platform & Decision Engine (`services/platform/`)
+### Module 3: Platform, Resource Observer & Decision Engine (`services/platform/`)
 
-**Responsibility**: Resource observation, baseline HPA computation, decision logic, policy guardrails.
+**Responsibility**: Collects cluster resource telemetry, aggregates cross-module context, executes deterministic scaling policy rules, records audit logs, and computes comparative HPA evaluations.
 
-**Current implementation state**: Production-grade telemetry providers implemented
-
-**Internal components**:
+**Internal Components Structure**:
 
 ```
 services/platform/app/
-├── api/v1/endpoints.py         ← FastAPI routes
+├── api/v1/endpoints.py                 ← FastAPI routes (decision, evaluation, history, intelligence)
 ├── clients/
-│   ├── traffic_client.py       ← HTTP client → Module 1
-│   └── demand_client.py        ← HTTP client → Module 2
+│   ├── traffic_client.py               ← HTTP client → Module 1 (:8001)
+│   └── demand_client.py                ← HTTP client → Module 2 (:8002)
+├── harness/
+│   ├── generator.py                    ← AsyncTrafficGenerator
+│   ├── collector.py                    ← TelemetryCollector
+│   ├── models.py                       ← ScenarioDefinition & presets
+│   └── runner.py                       ← ScenarioRunner
 ├── models/
-│   ├── resource.py             ← ResourceState
-│   ├── context.py              ← DecisionContext + PolicyOverrides
-│   ├── decision.py             ← ScalingDecision + ScalingAction enum
-│   ├── traffic_contract.py     ← Mirror of Module 1 TrafficAssessment
-│   └── demand_contract.py      ← Mirror of Module 2 DemandForecast
+│   ├── resource.py                     ← ResourceState
+│   ├── context.py                      ← DecisionContext + PolicyOverrides
+│   ├── decision.py                     ← ScalingDecision + ScalingAction enum
+│   ├── evaluation.py                   ← EvaluationResult + EvaluationCategory enum
+│   ├── history.py                      ← StoredObservation + HistoryStats
+│   ├── intelligence.py                 ← HistoricalSummary + HistoricalTrends
+│   ├── anomaly.py                      ← AnomalyAssessment + AnomalySignal
+│   └── prediction.py                   ← PredictiveForecast
 ├── services/
-│   ├── resource_observer.py    ← Delegates to telemetry provider
-│   ├── baseline_hpa.py         ← HPA formula calculator
-│   ├── decision_engine.py      ← Core decision logic
-│   ├── policy_guardrail.py     ← Bounds enforcement
+│   ├── resource_observer.py            ← Delegates to telemetry providers
+│   ├── baseline_hpa.py                 ← Standard reactive HPA formula
+│   ├── decision_engine.py              ← Deterministic scaling logic
+│   ├── policy_guardrail.py             ← Safety bounds enforcement
+│   ├── context_aggregator.py           ← Multi-service orchestrator
+│   ├── observation_scheduler.py        ← Continuous background observer
+│   ├── history/
+│   │   ├── base.py & sqlite_store.py   ← SQLite audit & observation store
+│   │   └── demand_accumulator.py       ← F2 legitimate demand accumulator
+│   ├── evaluation/
+│   │   ├── base.py & evaluator.py      ← HPA vs SentinelScale evaluator
+│   │   └── factory.py                  ← Singleton evaluator factory
+│   ├── intelligence/
+│   │   ├── historical.py               ← Statistical trend aggregations
+│   │   ├── baseline.py & anomaly.py    ← Behavioral anomaly detection
+│   │   └── predictive.py               ← OLS linear trend forecasting
+│   ├── metrics/
+│   │   └── prometheus.py               ← Pure-Python Prometheus exposition
 │   └── telemetry/
-│       ├── base.py             ← ResourceTelemetryProvider (ABC)
-│       ├── factory.py          ← get_telemetry_provider() factory
-│       ├── mock_provider.py    ← MockTelemetryProvider (default)
-│       ├── prometheus_provider.py ← PrometheusTelemetryProvider (Phase 1B)
-│       ├── kubernetes_provider.py ← KubernetesTelemetryProvider (Phase 2A)
-│       └── quantity_parser.py  ← Kubernetes quantity parsing
-└── config/settings.py          ← All environment-based configuration
+│       ├── base.py & factory.py        ← ResourceTelemetryProvider ABC & factory
+│       ├── mock_provider.py            ← MockTelemetryProvider (default)
+│       ├── prometheus_provider.py      ← PrometheusTelemetryProvider
+│       ├── kubernetes_provider.py      ← KubernetesTelemetryProvider
+│       ├── hybrid_provider.py          ← Hybrid Prometheus + K8s aggregator
+│       └── quantity_parser.py          ← Strict quantity parser
+└── config/settings.py                  ← pydantic-settings configuration
 ```
 
-**Public contract outputs**: `ResourceState`, `ScalingDecision` → `contracts/resources/`, `contracts/decisions/`
+**Public Contracts**: `ResourceState`, `DecisionContext`, `ScalingDecision` → `contracts/resources/`, `contracts/decisions/`
 
 ---
 
 ### Demo API (`demo-api/`)
 
-**Responsibility**: Realistic target workload simulating an e-commerce API. Generates authentic traffic patterns and Prometheus metrics for the platform to observe.
-
-**Endpoints**: `/health`, `/ready`, `/version`, `/metrics` (Prometheus format), product/user endpoints via `v1_router`
-
-**Prometheus metrics**: Emitted by `PrometheusMetricsMiddleware` in `app/metrics.py` — request counts, latency histograms, error rates, per-endpoint tracking.
+**Responsibility**: Realistic target workload simulating an e-commerce cloud API. Exposes business endpoints (`/products`, `/users`) and Prometheus metrics (`/metrics`).
 
 ---
 
@@ -142,28 +154,29 @@ The Resource Observer uses a pluggable provider pattern selected at startup via 
 
 ```
 ResourceObserverService
-      │ (constructor injection or factory)
+      │
       ▼
-ResourceTelemetryProvider (ABC)  ← base.py
-   ├── MockTelemetryProvider      ← mock_provider.py    (TELEMETRY_PROVIDER=mock, DEFAULT)
-   ├── PrometheusTelemetryProvider ← prometheus_provider.py  (TELEMETRY_PROVIDER=prometheus)
-   └── KubernetesTelemetryProvider ← kubernetes_provider.py  (TELEMETRY_PROVIDER=kubernetes)
+ResourceTelemetryProvider (ABC)
+   ├── MockTelemetryProvider        (TELEMETRY_PROVIDER=mock, DEFAULT)
+   ├── PrometheusTelemetryProvider   (TELEMETRY_PROVIDER=prometheus)
+   ├── KubernetesTelemetryProvider   (TELEMETRY_PROVIDER=kubernetes)
+   └── HybridTelemetryProvider       (TELEMETRY_PROVIDER=hybrid)
 ```
 
-All providers must implement `fetch_resource_state(namespace, workload, trace_id) → ResourceState` and raise `TelemetryProviderError` on failure (never silently return fake data).
+All providers implement `fetch_resource_state(namespace, workload, trace_id) -> ResourceState` and raise `TelemetryProviderError` on failure (never silently return fake zero data).
 
 ---
 
-## 5. Decision Engine Logic
+## 5. Decision Engine Logic & Policy Guardrails
 
 ```mermaid
 flowchart TD
     Context[DecisionContext] --> DE[Decision Engine]
-    DE --> HPA[Calculate Baseline HPA\nceiling current_pods × cpu_util/target_cpu]
-    DE --> SS[Calculate SentinelScale pods\nceiling predicted_rps / pod_capacity]
-    SS --> Guard[Policy Guardrails\nclamp min/max, step-up surge]
+    DE --> HPA[Calculate Baseline HPA\nceil current_pods × cpu_util/target_cpu]
+    DE --> SS[Calculate SentinelScale pods\nceil predicted_rps / pod_capacity]
+    SS --> Guard[Policy Guardrails\nclamp min/max, step-surge limit]
     Guard --> Check1{risk_score >= 0.70\nAND suspicious/malicious\nAND demand <= capacity?}
-    Check1 -- Yes --> HOLD[Action: HOLD\nSuppress scale-out]
+    Check1 -- Yes --> HOLD[Action: HOLD\nSuppress attack scale-out]
     Check1 -- No --> Check2{demand > capacity?}
     Check2 -- Yes --> SCALE[Action: SCALE\nto guardrail-bounded pods]
     Check2 -- No --> Check3{demand < 50% capacity\nAND pods can decrease?}
@@ -175,73 +188,50 @@ flowchart TD
     HOLDNORM --> Out
 ```
 
----
-
-## 6. Baseline HPA Formula
-
+### Baseline HPA Formula
 $$\text{baseline\_hpa\_pods} = \text{clamp}\left(\left\lceil \text{current\_pods} \times \frac{\text{cpu\_utilization}}{\text{target\_cpu\_utilization}} \right\rceil, \text{min\_pods}, \text{max\_pods}\right)$$
 
-$$\text{pod\_delta\_vs\_baseline} = \text{sentinelscale\_pods} - \text{baseline\_hpa\_pods}$$
+### SentinelScale Pod Formula
+$$\text{raw\_sentinel\_pods} = \left\lceil \frac{\text{predicted\_legitimate\_rps}}{\text{pod\_rps\_capacity}} \right\rceil$$
 
-A negative delta means SentinelScale saved that many pods from being wastefully provisioned.
-
----
-
-## 7. Policy Guardrails (Deterministic)
-
-Applied to raw recommended pod count in this order:
-
-1. **Minimum pods**: `if bounded_pods < min_pods → return min_pods`
-2. **Maximum pods**: `if bounded_pods > max_pods → return max_pods`
-3. **Step-up surge protection**: `max_scale_per_cycle = current_pods * 2`
-
-Policy name: `default-safe-guardrail-v1`
+### Policy Guardrail Enforcement (`default-safe-guardrail-v1`)
+1. **Minimum pods**: `max(min_pods, raw_pods)` (default: 2)
+2. **Maximum pods**: `min(max_pods, raw_pods)` (default: 20)
+3. **Step-up surge protection**: `min(current_pods * 2, bounded_pods)`
 
 ---
 
-## 8. Kubernetes Infrastructure
+## 6. Comparative HPA vs. SentinelScale Evaluator
 
-All services deploy into the `sentinelscale` namespace:
-
-```
-infrastructure/kubernetes/
-├── namespace.yaml
-├── demo-api/           deployment.yaml, service.yaml
-├── traffic-intelligence/
-├── demand-intelligence/
-└── platform/           deployment.yaml, service.yaml, rbac.yaml
-```
-
-Platform RBAC (`rbac.yaml`) grants **read-only** access to:
-- `apps/deployments`: `get`
-- `core/pods`: `get`, `list`
-
-No write permissions to Kubernetes are granted.
+The deterministic `DefaultHPAEvaluationService` compares the standard reactive HPA baseline against the SentinelScale decision:
+- **`replica_delta = sentinelscale_pods - hpa_pods`**
+- **`pod_hours_saved = max(0, hpa_pods - sentinelscale_pods)`**
+- Categorizes comparisons into:
+  - `ALIGNED`: Decisions agree on replica count.
+  - `SENTINELSCALE_PREVENTS_UNNECESSARY_SCALE`: SentinelScale suppresses scale-out caused by attack traffic.
+  - `SENTINELSCALE_PROACTIVELY_SCALES`: SentinelScale scales ahead of legitimate demand surges.
+  - `SCALE_DOWN_DIFFERENCE`: SentinelScale safely scales down on low legitimate demand.
+  - `UNCERTAIN`: Telemetry or forecasting confidence is below threshold ($< 0.50$).
 
 ---
 
-## 9. Communication Patterns
+## 7. Communication Protocols & Transport
 
-| Communication | Protocol | Direction |
-| :--- | :--- | :--- |
-| Module 3 → Module 1 | HTTP POST (httpx async) | Pull on demand |
-| Module 3 → Module 2 | HTTP POST (httpx async) | Pull on demand |
-| Module 3 → Prometheus | HTTP GET (httpx async) | Pull on demand |
-| Module 3 → Kubernetes API | HTTP GET (httpx async) | Pull on demand |
-| Demo API → Prometheus | Scrape `/metrics` | Prometheus pulls |
-| All modules | REST JSON | Stateless |
-
-There is **no message queue, no event bus, no shared database** in the current implementation.
+| Boundary | Protocol | Serialization | Error Handling |
+| :--- | :--- | :--- | :--- |
+| Generator → Demo API | HTTP (async) | REST JSON | Per-request status & latency recording |
+| Platform → Module 1 | HTTP POST | JSON (`TrafficTelemetryInput` → `TrafficAssessment`) | HTTP 422 / 502 error mapping |
+| Platform (F2) → SQLite | In-process SQL | SQLite3 (WAL mode) | Parameterized queries & thread locking |
+| Platform → Module 2 | HTTP POST | JSON (`ForecastRequest` → `DemandForecast`) | HTTP 422 / 502 / 503 mapping |
+| Platform → Evaluator | In-process / HTTP | JSON (`DecisionContext` → `EvaluationResult`) | Deterministic calculation |
+| Demo API → Prometheus | HTTP GET | Prometheus text format v0.0.4 | Scraped via `/metrics` |
 
 ---
 
-## 10. Important Design Decisions
+## 8. Safety Guarantees
 
-See [`docs/DECISIONS.md`](DECISIONS.md) for full ADR records.
-
-1. Three independent module architecture (ADR-001)
-2. Decoupled Demand Intelligence — async, no runtime dependency on Module 1 (ADR-002)
-3. Strictly deterministic, non-LLM decision guardrails (ADR-002)
-4. Shadow mode + baseline HPA comparison first (ADR-003)
-5. Pluggable telemetry provider with explicit failure representation (no silent zero-fallbacks)
-6. `dry_run=True` hardcoded in `DecisionEngine.evaluate_decision()` — cannot be overridden at runtime
+1. **`dry_run=True`** is hardcoded in `ScalingDecision` — scaling actions are purely advisory recommendations.
+2. **`shadow_mode=True`** enables parallel evaluation alongside baseline HPA.
+3. **`SENTINEL_AUTONOMOUS_ACTIONS_ENABLED=False`** guarantees no autonomous cloud mutations.
+4. **Zero Kubernetes cluster mutations** were performed during all validation stages.
+5. **Deterministic Execution**: Actuation decisions contain zero LLM or randomized heuristics.
