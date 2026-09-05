@@ -19,13 +19,14 @@ spec:
         app.kubernetes.io/component: decision-engine
         app.kubernetes.io/part-of: sentinelscale
     spec:
+      serviceAccountName: sentinelscale-platform
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         fsGroup: 1000
       containers:
         - name: platform
-          image: sentinelscale/platform:latest
+          image: sentinelscale/platform:v0.1.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8003
@@ -41,6 +42,10 @@ spec:
               value: "http://traffic-intelligence.sentinelscale.svc.cluster.local:8001"
             - name: DEMAND_INTELLIGENCE_URL
               value: "http://demand-intelligence.sentinelscale.svc.cluster.local:8002"
+            - name: PROMETHEUS_URL
+              value: "http://prometheus.sentinelscale.svc.cluster.local:9090"
+            - name: TELEMETRY_PROVIDER
+              value: "prometheus"
             - name: SENTINEL_DRY_RUN
               value: "true"
             - name: SENTINEL_SHADOW_MODE
@@ -54,6 +59,9 @@ spec:
             limits:
               cpu: "1000m"
               memory: "512Mi"
+          volumeMounts:
+            - name: data-volume
+              mountPath: /app/data
           livenessProbe:
             httpGet:
               path: /health
@@ -68,3 +76,6 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 2
+      volumes:
+        - name: data-volume
+          emptyDir: {}
