@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     # Operational Metrics & Observability Configuration (Phase 4C)
     METRICS_ENABLED: bool = True
 
+    # Empirical Experiments Store Configuration (Stage M3-11D)
+    EXPERIMENTS_RESULTS_DIR: str = "./experiments/results"
+
     # OpenTelemetry Distributed Tracing Configuration (Stage M3-9)
     OTEL_TRACES_ENABLED: bool = False
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4318"
