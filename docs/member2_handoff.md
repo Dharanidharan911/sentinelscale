@@ -340,3 +340,30 @@ mock provider remains deterministic for tests and local integration.
 Exact next integration action: have Member 3 call
 `POST /api/v1/demand/forecast` with its contract-approved historical
 `DemandObservation` list and propagate the shared trace ID.
+
+---
+
+## 15. IC-4 Model & Feature Architecture Update (2026-09-06)
+
+- **Service Status**: 121 tests passing (100% pass rate).
+- **Feature Engineering Layer (M2-4)**: `app/engine/features.py` extracts 12 deterministic, leakage-safe features (`recent_demand`, `lag_1`, `lag_2`, `rolling_mean_short`, `rolling_mean_full`, `rolling_std_full`, `trend_slope`, `rate_of_change`, `acceleration`, `sampling_regularity`, `time_span_seconds`, `horizon_ratio`).
+- **ML Candidate Forecaster (M2-5)**: `app/engine/ml_forecaster.py` implements regularized Ridge regression (`demand-ml-v1`) with fallback to baseline `demand-v1` when $N < 4$.
+- **Model Benchmark (M2-6)**: `benchmarks/benchmark_suite.py` executed across 6 synthetic scenarios. Baseline (`demand-v1`) achieved 54.19 RPS MAE and 83.3% interval coverage vs ML candidate (`demand-ml-v1`) 180.43 RPS MAE and 33.3% coverage due to surge-damping properties. Baseline retained as preferred default.
+- **Provider & Engine Selection (M2-7)**: Configurable via `FORECAST_MODEL=baseline` (or `ml`) and `ML_RIDGE_ALPHA=1.0`. All outputs continue to conform 100% to frozen `DemandForecast` v1.0.0.
+
+---
+
+## 16. Milestones M2-8 Through M2-14 Completion & Hardening (2026-09-06)
+
+- **Test Suite Status**: **159 tests passing (100% pass rate)**. Full microservices runner `python run_tests.py` passes all 4 suites.
+- **M2-8 (DemandForecast Integration)**: Verified complete end-to-end integration via client flow simulation. Zero-RPS demand is verified as physically valid legitimate workload (never treated as missing). Full conformance against `contracts/demand/demand_forecast.schema.json` v1.0.0.
+- **M2-9 (Prediction Intervals)**: Implemented horizon-dilated and cadence-dilated uncertainty:
+  $\sigma_{\text{eff}} = \sigma \sqrt{1 + h / \max(T, 30)} \times (1 + 0.5(1 - \text{regularity}))$.
+  Strictly satisfies invariant $0.0 \le \text{lower} \le \text{predicted} \le \text{upper}$. Improved ML candidate benchmark interval coverage from 33.3% to 66.7%.
+- **M2-10 (Confidence Calibration)**: Multi-factor confidence score calibrated with data quality, sample count, relative variance (CV), horizon ratio, and cadence regularity. Monotonically penalizes sparse, volatile, or stale data.
+- **M2-11 (Failure / Fallback Handling)**: Strict explicit failure semantics. Invariant: errors NEVER emit silent 0.0 RPS. Provider outages return HTTP 503; invalid data returns HTTP 422. ML candidate numerical anomalies (singular matrix, non-finite output) fallback transparently to baseline `demand-v1`.
+- **M2-12 (Data Quality Intelligence)**: Implemented `app/engine/data_quality.py` (`DataQualityAssessor`). Evaluates completeness ratio, cadence regularity, staleness, noise-to-signal ratio, and categorical quality rating (`EXCELLENT`, `GOOD`, `DEGRADED`, `POOR`).
+- **M2-13 (Seasonality Engine)**: Implemented `app/engine/seasonality.py` (`SeasonalityDetector`). Evaluates autocorrelation peaks with dynamic white-noise significance ($r \ge \max(0.35, 1.96 / \sqrt{N})$) and Fourier harmonic regression. Requires $\ge 2$ full periods before confirming seasonality; falls back cleanly to non-seasonal RWMA projection if periodicity is unconfirmed.
+- **M2-14 (Explainability Engine)**: Implemented `app/engine/explainability.py` (`ForecastExplainer`). Synthesizes deterministic reason tags (`MODEL_*`, `QUALITY_*`, `TREND_*`, `VOLATILITY_*`, `SEASONALITY_*`, `UNCERTAINTY_*`). Surfaces tags through HTTP response headers (`X-Forecast-Explanation`, `X-Forecast-Quality`) and structured JSON logs without altering the frozen JSON Schema v1.0.0.
+
+

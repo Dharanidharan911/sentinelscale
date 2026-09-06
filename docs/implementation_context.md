@@ -70,14 +70,25 @@ API Traffic → Traffic Intelligence → Demand Intelligence → Resource Intell
 | 13 | Error handling (explicit, never silent zero) | ✅ Done |
 | 14–18 | Test suite (74 tests) | ✅ Done |
 | 22 | Platform integration readiness | ✅ Done |
+| 23 | M2-4: Feature engineering (12-feature leakage-safe extractor) | ✅ Done |
+| 24 | M2-5: ML forecasting candidate (demand-ml-v1 Ridge regression) | ✅ Done |
+| 25 | M2-6: Model benchmarking suite & synthetic evaluation report | ✅ Done |
+| 26 | M2-7: Configurable provider & model architecture | ✅ Done |
+| 27 | M2-8: DemandForecast Integration & zero-RPS preservation | ✅ Done |
+| 28 | M2-9: Horizon & regularity dilated prediction intervals | ✅ Done |
+| 29 | M2-10: Calibrated confidence scoring | ✅ Done |
+| 30 | M2-11: Explicit failure & transparent ML-to-baseline fallback | ✅ Done |
+| 31 | M2-12: Data quality intelligence (completeness, regularity, staleness) | ✅ Done |
+| 32 | M2-13: Deterministic seasonality detection & harmonic adjustment | ✅ Done |
+| 33 | M2-14: Forecast explainability engine & response headers | ✅ Done |
 
 ### Pending Phases (next)
 
 | Phase | Description | Priority |
 |---|---|---|
-| 20 | Member 1 TrafficAssessment integration | After Checkpoint 3 |
-| 21 | Real environment validation | After Checkpoint 3 |
-| 23 | Final handoff (already done partially) | Ongoing |
+| 34 | Member 1 TrafficAssessment integration | After Checkpoint 3 |
+| 35 | Real environment live cluster validation | After Checkpoint 3 |
+| 36 | Member 3 downstream consumption | Ready for integration |
 
 ---
 
@@ -96,45 +107,46 @@ services/demand-intelligence/
 │   ├── providers/
 │   │   ├── base.py                ← Abstract DemandProvider interface
 │   │   ├── mock_provider.py       ← MockDemandProvider (sinusoidal deterministic)
+│   │   ├── prometheus_provider.py ← PrometheusDemandProvider (real telemetry)
 │   │   └── static_provider.py    ← StaticObservationProvider (inline observations)
 │   ├── engine/
 │   │   ├── preprocessor.py        ← Validate, sort, deduplicate, statistics
-│   │   └── forecaster.py          ← RWMA + trend + confidence → DemandForecast
+│   │   ├── features.py            ← 12-feature time-series extractor (M2-4)
+│   │   ├── forecaster.py          ← RWMA + trend + intervals + confidence (demand-v1)
+│   │   ├── ml_forecaster.py       ← Regularized Ridge ML forecaster (demand-ml-v1)
+│   │   ├── data_quality.py        ← Data quality assessor & rating (M2-12)
+│   │   ├── seasonality.py         ← Autocorrelation peak & harmonic adjustment (M2-13)
+│   │   └── explainability.py      ← Multi-tag explainability engine (M2-14)
 │   ├── services/
-│   │   └── forecaster.py          ← DemandForecastingService (provider selection + orchestration)
+│   │   └── forecaster.py          ← DemandForecastingService (provider & model selection)
 │   ├── api/
 │   │   └── v1/
-│   │       └── endpoints.py       ← POST /api/v1/demand/forecast
+│   │       └── endpoints.py       ← POST /api/v1/demand/forecast (v1.0.0 + headers)
 │   └── mock/
-│       └── generator.py           ← Legacy mock (preserved, unused in production path)
-└── tests/
-    ├── test_demand_observations.py   ← Domain model tests
-    ├── test_preprocessor.py          ← Preprocessor unit tests
-    ├── test_forecasting_engine.py    ← Engine unit tests (bounds, confidence, trend, determinism)
-    ├── test_mock_provider.py         ← Mock provider tests
-    ├── test_error_handling.py        ← Error handling integration tests
-    ├── test_traceability.py          ← Trace ID / metadata tests
-    ├── test_demand_api.py            ← Full API integration tests
-    ├── test_health.py                ← Health/ready/version endpoint tests
-    └── test_contract_conformance.py  ← JSON Schema conformance test
+│       └── generator.py           ← Legacy mock (preserved)
+├── benchmarks/
+│   ├── benchmark_suite.py         ← Deterministic walk-forward benchmark (M2-6)
+│   └── BENCHMARK_REPORT.md        ← Measured metrics across 6 synthetic scenarios
+└── tests/                         ← 159 passing tests (100% pass rate)
 ```
 
 ---
 
-## 6. Forecasting Algorithm
+## 6. Forecasting Algorithm & Capabilities
 
-**Model:** `demand-v1` — Recency-Weighted Moving Average + Linear Trend Projection
+**Baseline Model:** `demand-v1` — Recency-Weighted Moving Average + Linear Trend + Seasonality
+**Candidate ML Model:** `demand-ml-v1` — Feature-Engineered Ridge Regression with safe fallback
 
 1. Validate/preprocess observations (sort oldest→newest, deduplicate, reject negative RPS)
-2. Compute time-aware exponentially weighted mean (decay=0.85 per 30s)
-3. Compute linear regression slope over full series (trend)
-4. Project forward: `predicted = weighted_mean + slope × horizon_seconds` (if ≥5 observations AND time_span ≥ 120s, slope capped to ±10.0 RPS/s)
-5. Prediction interval: `±1.5 × std_dev` around point estimate
-6. Confidence: geometric mean of sample-count confidence, variance confidence, and horizon ratio
-7. Build `DemandForecast` with frozen contract fields
-
-**Minimum observations:** 2 (raises `InsufficientDataError` if fewer)
-**Trend activation threshold:** 5 observations AND 120s time span
+2. Assess data quality (completeness, cadence regularity, staleness, noise-to-signal ratio)
+3. Compute time-aware exponentially weighted mean (decay=0.85 per 30s)
+4. Compute linear regression slope over full series (trend capped to ±10.0 RPS/s)
+5. Detect seasonality via autocorrelation peaks; apply harmonic adjustment if ≥2 periods present
+6. Prediction interval: horizon and regularity dilated bounded interval:
+   $\sigma_{\text{eff}} = \sigma \sqrt{1 + h / \max(T, 30)} \times (1 + 0.5(1 - \text{regularity}))$
+7. Confidence: multi-factor calibrated score combining sample count, CV, horizon ratio, regularity, and data quality
+8. Explainability: deterministic reason tags (trend, volatility, quality, uncertainty, model) attached to response headers (`X-Forecast-Explanation`, `X-Forecast-Quality`) and structured logging
+9. Build `DemandForecast` with frozen contract fields v1.0.0
 
 ---
 
@@ -155,14 +167,14 @@ services/demand-intelligence/
 
 ```
 Command: python -m pytest services/demand-intelligence/tests -v -o "pythonpath=services/demand-intelligence"
-Result:  74 passed, 0 failed
+Result:  159 passed, 0 failed
 ```
 
 Full project: `python run_tests.py`
 ```
 Demo API                    PASSED
 Traffic Intelligence        PASSED
-Demand Intelligence         PASSED  (74 tests)
+Demand Intelligence         PASSED  (159 tests)
 Platform & Decision Engine  PASSED
 ALL 4 SERVICE TEST SUITES PASSED
 ```
@@ -290,6 +302,33 @@ the current architecture.
 
 ---
 
+## 17. Member 2 IC-4 Milestone — Feature Engineering, ML Candidate, Benchmark & Provider Architecture (2026-09-06)
+
+**Contract:** `DemandForecast` v1.0.0 remains frozen and unchanged.
+
+- **M2-4 Feature Engineering (`app/engine/features.py`)**:
+  - Implemented `DemandFeatureExtractor` extracting 12 canonical, leakage-safe features (`recent_demand`, `lag_1`, `lag_2`, `rolling_mean_short`, `rolling_mean_full`, `rolling_std_full`, `trend_slope`, `rate_of_change`, `acceleration`, `sampling_regularity`, `time_span_seconds`, `horizon_ratio`).
+  - Strict invariants: strictly $t \le t_{last}$ (zero future leakage), deterministic, stable named and vector ordering, explicit `InsufficientDataError` when $N < 4$.
+- **M2-5 ML Forecasting Model (`app/engine/ml_forecaster.py`)**:
+  - Implemented `MLDemandForecaster` with model version identity `"demand-ml-v1"`.
+  - Regularized closed-form Ridge linear regression solver ($\alpha=1.0$), non-negative clamping, bounds invariant ($\text{lower} \le \text{predicted} \le \text{upper}$), and confidence scoring.
+  - Failure-safe fallback: when $N < 4$ or upon numerical anomaly, gracefully delegates to baseline RWMA (`demand-v1`) with structured fallback logging.
+- **M2-6 Benchmark Suite (`benchmarks/benchmark_suite.py`, `tests/test_forecast_benchmark.py`)**:
+  - Executed reproducible comparison across 6 synthetic scenarios (steady growth, decline, flat, sinusoidal, flash surge, noisy).
+  - Actual measured results:
+    - Baseline (`demand-v1`): Overall MAE = 54.19 RPS, RMSE = 65.94 RPS, Latency = 0.1702 ms, Interval Coverage = 83.3%.
+    - ML Candidate (`demand-ml-v1`): Overall MAE = 180.43 RPS, RMSE = 362.66 RPS, Latency = 1.6652 ms, Interval Coverage = 33.3%.
+    - Decision: ML candidate exhibits superior accuracy on smooth linear trends but overshoots on step-surge discontinuities. Baseline retained as the preferred default; ML retained as configurable opt-in.
+- **M2-7 Provider Architecture (`app/config/settings.py`, `app/services/forecaster.py`)**:
+  - Added `FORECAST_MODEL` (default: `"baseline"`, opt-in: `"ml"`) and `ML_RIDGE_ALPHA` (default: 1.0).
+  - Extended `DemandForecastingService` to orchestrate model selection and log `model_version`.
+  - Exported all providers from `app/providers/__init__.py`.
+- **Test Results**:
+  - Focused: 121 Member 2 tests passed (`pytest services/demand-intelligence/tests`).
+  - Full repo: `python run_tests.py` passed all 4 service test suites cleanly.
+
+---
+
 ## 12. Engineering Rules (Do Not Violate)
 
 1. **Contracts are frozen** — never modify `contracts/**` files without team agreement
@@ -299,3 +338,4 @@ the current architecture.
 5. **Module boundaries clean** — Member 2 does not import Member 3 code
 6. **Tests must pass before commit** — run `run_tests.py` before any push
 7. **Update this file** — every agent must update `docs/implementation_context.md` after completing work
+

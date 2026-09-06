@@ -105,24 +105,39 @@ Forecasting Engine             ← RWMA + linear trend + confidence scoring
 DemandForecast (v1.0.0)
 ```
 
-### Forecasting Algorithm
+### Forecasting Engines
 
-**Model**: `demand-v1` — Recency-Weighted Moving Average + Linear Trend Projection
-
+#### 1. Baseline Engine (`demand-v1` — Default)
+Recency-Weighted Moving Average + Linear Trend Projection:
 1. **Validate & preprocess** observations (sort, deduplicate, reject invalid)
 2. **Weighted mean** — most recent observations weighted heavier (`decay=0.85`)
 3. **Trend detection** — linear regression slope over cleaned series
-4. **Trend projection** — if ≥ 5 observations, extrapolate trend over `forecast_horizon_seconds`
+4. **Trend projection** — if ≥ 5 observations, extrapolate trend over `forecast_horizon_seconds` (capped to prevent runaway extrapolation)
 5. **Prediction interval** — ±1.5 × historical std-dev around point estimate
-6. **Confidence** — based on sample count and coefficient of variation
+6. **Confidence** — based on sample count, variance, horizon ratio, and sampling regularity
+
+#### 2. ML Candidate Engine (`demand-ml-v1` — Configurable Opt-In)
+Feature-Engineered Regularized Ridge Linear Regression:
+1. **Feature Engineering (M2-4)**: `app/engine/features.py` extracts 12 deterministic, leakage-safe features (`recent_demand`, lags 1–2, short/full rolling statistics, trend slope, rate of change, acceleration, cadence regularity, horizon ratio).
+2. **Ridge Forecaster (M2-5)**: `app/engine/ml_forecaster.py` fits local autoregressive dynamics via closed-form Ridge estimator ($\alpha = 1.0$).
+3. **Fallback Safety**: If observations are fewer than 4 or if numerical anomalies occur, gracefully falls back to baseline `demand-v1`.
+4. **Configuration (M2-7)**: Activated via `FORECAST_MODEL=ml` or `FORECAST_MODEL=demand-ml-v1`.
+
+### 3. Data Quality, Seasonality & Explainability (M2-8 through M2-14)
+- **Data Quality Intelligence (M2-12)**: `app/engine/data_quality.py` analyzes observation completeness, sampling cadence regularity, staleness, and noise-to-signal ratio to assign continuous scores and categorical ratings (`EXCELLENT`, `GOOD`, `DEGRADED`, `POOR`).
+- **Seasonality Engine (M2-13)**: `app/engine/seasonality.py` detects cyclical patterns via autocorrelation peak analysis and Fourier harmonic regression when observation history covers at least 2 full periods. Falls back cleanly to non-seasonal RWMA projection when cycles are unconfirmed.
+- **Horizon & Regularity Dilated Prediction Intervals (M2-9)**: Evaluates dynamic interval expansion ($\sigma \sqrt{1 + h / \max(T, 30)}$) with cadence jitter dilation, strictly preserving $0 \le \text{lower} \le \text{predicted} \le \text{upper}$.
+- **Calibrated Confidence Scoring (M2-10)**: Multi-factor confidence score calibrated against sample scarcity, CV, horizon ratio, cadence irregularity, and data quality.
+- **Explicit Failure & Fallback Handling (M2-11)**: Strict error semantics (422 for insufficient data, 503 for provider outages). ML candidate numerical anomalies transparently fall back to baseline `demand-v1`. Errors never emit silent 0.0 RPS.
+- **Forecast Explainability (M2-14)**: `app/engine/explainability.py` synthesizes deterministic reason tags (`MODEL_*`, `QUALITY_*`, `TREND_*`, `VOLATILITY_*`, `SEASONALITY_*`, `UNCERTAINTY_*`) attached to HTTP response headers (`X-Forecast-Explanation`, `X-Forecast-Quality`) and structured JSON logs without altering frozen contract v1.0.0.
 
 ### Confidence Semantics
 
 | Confidence | Meaning |
 |---|---|
-| `≥ 0.85` | High confidence — strong historical signal, low variance |
+| `≥ 0.85` | High confidence — strong historical signal, low variance, fresh telemetry |
 | `0.5–0.85` | Moderate confidence — reasonable signal |
-| `< 0.5` | Low confidence — sparse data or high variance |
+| `< 0.5` | Low confidence — sparse data, high variance, or long horizon |
 | `< 0.3` | Very low — Member 3 should consider `HOLD` |
 
 ---
@@ -137,31 +152,32 @@ uvicorn app.main:app --port 8002 --reload
 
 Service docs: http://localhost:8002/docs
 
-### Prometheus Demand Provider
-
-Set `DEMAND_PROMETHEUS_URL` with Docker Compose (or `PROMETHEUS_URL` when
-running directly) to enable the real telemetry provider. It calls
-`/api/v1/query_range` with a five-second default timeout. `PROMETHEUS_QUERY`
-may override the default query and may contain `{target_service}`.
+### Model & Telemetry Configuration
 
 ```env
+# Engine selection: "baseline" (demand-v1, default) or "ml" (demand-ml-v1)
+FORECAST_MODEL=baseline
+ML_RIDGE_ALPHA=1.0
+
+# Optional Prometheus provider
 DEMAND_PROMETHEUS_URL=http://prometheus:9090
 DEMAND_PROMETHEUS_QUERY=sum(rate(http_requests_total{service="{target_service}"}[1m]))
 PROMETHEUS_STEP_SECONDS=30
 PROMETHEUS_TIMEOUT_SECONDS=5
 ```
 
-The query must return RPS matrix samples. An empty successful response is no
-data and yields the existing insufficient-data error; unreachable or malformed
-telemetry yields `503 provider_unavailable`, never a zero-demand forecast.
+---
 
-### Observation Quality Rules
+## Running Benchmarks (M2-6)
 
-Observations must have finite, positive Unix timestamps and finite,
-non-negative RPS values. Timestamps more than 60 seconds ahead of the service
-clock are rejected by default; configure `OBSERVATION_MAX_FUTURE_SKEW_SECONDS`
-when telemetry producers have a known clock offset. These failures are invalid
-data, not legitimate zero demand.
+Run the reproducible benchmark suite comparing baseline vs ML candidate:
+
+```bash
+# From services/demand-intelligence/ or root:
+python -m benchmarks.benchmark_suite
+```
+
+Findings: Baseline (`demand-v1`) achieved 54.71 RPS MAE and 83.3% interval coverage vs ML candidate (`demand-ml-v1`) 180.43 RPS MAE and 66.7% coverage across 6 synthetic scenarios. Baseline remains the production default. Full report in `benchmarks/BENCHMARK_REPORT.md`.
 
 ---
 
@@ -172,7 +188,7 @@ data, not legitimate zero demand.
 python -m pytest services/demand-intelligence/tests -v -o "pythonpath=services/demand-intelligence"
 ```
 
-**Expected result:** 74 tests passing, 0 failing.
+**Expected result:** 159 tests passing, 0 failing.
 
 ---
 
@@ -189,8 +205,7 @@ python -m pytest services/demand-intelligence/tests -v -o "pythonpath=services/d
 | Limitation | Impact |
 |---|---|
 | Default query metric is not yet emitted by repository services | Configure a query matching deployed telemetry before enabling Prometheus |
-| Linear trend model | Does not capture seasonality, non-linear patterns |
-| No persistence | History lives only within the request; no database |
+| Stateful persistence | History lives within the request or telemetry query; no internal database |
 
 ---
 

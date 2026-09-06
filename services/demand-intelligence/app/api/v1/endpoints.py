@@ -15,7 +15,7 @@ IMPORTANT: errors are NEVER silently converted to zero demand.
 """
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from fastapi.responses import JSONResponse
 
 from app.models.demand import DemandForecast, ForecastRequest
@@ -53,6 +53,7 @@ def get_forecaster_service() -> DemandForecastingService:
 )
 async def forecast_demand(
     request: ForecastRequest,
+    response: Response,
     x_trace_id: Optional[str] = Header(None, alias="X-Trace-ID"),
     service: DemandForecastingService = Depends(get_forecaster_service),
 ) -> DemandForecast:
@@ -61,7 +62,10 @@ async def forecast_demand(
         request.trace_id = x_trace_id
 
     try:
-        return await service.forecast_demand(request)
+        forecast, explanation = await service.forecast_demand_with_explanation(request)
+        response.headers["X-Forecast-Explanation"] = explanation.to_header_value()
+        response.headers["X-Forecast-Quality"] = explanation.quality_tag
+        return forecast
 
     except InsufficientDataError as exc:
         raise HTTPException(
