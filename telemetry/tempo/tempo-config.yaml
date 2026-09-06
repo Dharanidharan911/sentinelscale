@@ -1,4 +1,4 @@
-﻿server:
+server:
   http_listen_port: 3200
 
 distributor:
@@ -34,5 +34,3 @@ overrides:
   defaults:
     metrics_generator:
       processors: [service-graphs, span-metrics]
-
-search_enabled: true

@@ -155,9 +155,11 @@ services:
     image: otel/opentelemetry-collector-contrib:0.96.0
     container_name: sentinelscale-otel-collector
     restart: unless-stopped
+    user: "0:0"
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
       - ./telemetry/otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
     ports:
       - "4317:4317"
       - "4318:4318"

@@ -10,6 +10,19 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+  filelog:
+    include:
+      - /var/lib/docker/containers/*/*-json.log
+    start_at: beginning
+    include_file_path: true
+    include_file_name: false
+    operators:
+      - type: json_parser
+        parse_to: body
+      - type: move
+        from: body.log
+        to: body
+        if: 'body.log != nil'
 
 processors:
   batch:
@@ -25,6 +38,8 @@ exporters:
     endpoint: tempo:4317
     tls:
       insecure: true
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
 
 service:
   extensions: [health_check]
@@ -37,3 +52,9 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [debug]
+    logs:
+      receivers: [otlp, filelog]
+      processors: [batch]
+      exporters: [loki]
+
+
