@@ -944,3 +944,393 @@ body.dark-theme {
   color: var(--text-muted);
 }
 
+/* ==========================================================================
+   M3-11C: HISTORICAL TRENDS, ANOMALY INTELLIGENCE, AND AUDIT TRAIL
+   ========================================================================== */
+
+.grid-2-col-equal {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1024px) {
+  .grid-2-col-equal {
+    grid-template-columns: 1fr;
+  }
+}
+
+.header-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* WINDOW TABS */
+.window-controls {
+  display: flex;
+  gap: 4px;
+  background-color: #0b111e;
+  padding: 2px;
+  border-radius: 4px;
+  border: 1px solid #1e293b;
+}
+
+.btn-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-tab:hover {
+  color: var(--text-primary);
+}
+
+.btn-tab.active {
+  background-color: var(--cyan-primary);
+  color: #042f2e;
+}
+
+/* TREND CHART & LEGEND */
+.trend-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.trend-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-demand { background-color: var(--cyan-primary); }
+.dot-capacity { background-color: #3b82f6; }
+.dot-risk { background-color: var(--rose-danger); }
+.dot-pods { background-color: var(--emerald-green); }
+
+.trend-chart-wrapper {
+  background-color: #0a0f1d;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 8px;
+  height: 180px;
+  position: relative;
+}
+
+.trend-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.chart-grid-line {
+  stroke: #1e293b;
+  stroke-dasharray: 2 2;
+  stroke-width: 1;
+}
+
+.chart-axis-text {
+  fill: #64748b;
+  font-size: 9px;
+  font-family: var(--font-mono);
+}
+
+.chart-line-demand {
+  fill: none;
+  stroke: var(--cyan-primary);
+  stroke-width: 2.2;
+}
+
+.chart-area-demand {
+  fill: rgba(6, 182, 212, 0.12);
+  stroke: none;
+}
+
+.chart-line-capacity {
+  fill: none;
+  stroke: #3b82f6;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 2;
+}
+
+.chart-line-risk {
+  fill: none;
+  stroke: var(--rose-danger);
+  stroke-width: 2;
+}
+
+.chart-line-pods {
+  fill: none;
+  stroke: var(--emerald-green);
+  stroke-width: 1.8;
+}
+
+.trend-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  background-color: #0b111e;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  padding: 8px 10px;
+}
+
+.trend-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tstat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.tstat-val {
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+/* ANOMALY CARD & SIGNALS */
+.anomaly-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+.badge-anomaly {
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.badge-anomaly-normal {
+  background-color: rgba(16, 185, 129, 0.15);
+  color: var(--emerald-green);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.badge-anomaly-elevated {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--amber-warning);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.badge-anomaly-anomalous {
+  background-color: rgba(244, 63, 94, 0.2);
+  color: var(--rose-danger);
+  border: 1px solid rgba(244, 63, 94, 0.5);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
+}
+
+.badge-anomaly-insufficient {
+  background-color: rgba(100, 116, 139, 0.2);
+  color: #94a3b8;
+  border: 1px solid rgba(100, 116, 139, 0.4);
+}
+
+.anomaly-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.anomaly-explanation-box {
+  background-color: #0b121e;
+  border: 1px solid #1e2d42;
+  border-left: 3px solid var(--emerald-green);
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.anomaly-signals-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.anomaly-signal-card {
+  background-color: #0b111e;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.anomaly-signal-card.sig-elevated {
+  border-color: rgba(245, 158, 11, 0.5);
+  background-color: rgba(245, 158, 11, 0.05);
+}
+
+.anomaly-signal-card.sig-anomalous {
+  border-color: rgba(244, 63, 94, 0.6);
+  background-color: rgba(244, 63, 94, 0.08);
+}
+
+.signal-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.signal-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #e2e8f0;
+  font-family: var(--font-mono);
+}
+
+.signal-sev-pill {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.signal-details-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.anomaly-pattern-box {
+  background-color: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pattern-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.pattern-chips {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.pattern-chip {
+  background-color: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  color: var(--cyan-primary);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+}
+
+/* EXTENDED AUDIT HISTORY TABLE & CONTROLS */
+.history-card-full {
+  margin-bottom: 20px;
+}
+
+.history-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.history-stats-pill {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  background-color: #0b111e;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #1e293b;
+}
+
+.history-stats-pill strong {
+  color: var(--text-primary);
+}
+
+.history-filter-select {
+  background-color: #0b111e;
+  border: 1px solid #1e293b;
+  color: var(--text-primary);
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.history-table-detailed th,
+.history-table-detailed td {
+  padding: 9px 12px;
+}
+
+.btn-secondary {
+  background: #1e293b;
+  color: var(--text-primary);
+  border-color: #334155;
+}
+
+.btn-secondary:hover {
+  background: #334155;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
+.obs-grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1024px) {
+  .obs-grid-4 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+

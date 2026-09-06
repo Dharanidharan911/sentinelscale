@@ -76,12 +76,101 @@ async def get_decision_history(
     limit: int = Query(default=10, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     action: Optional[str] = Query(default=None),
+    success: Optional[bool] = Query(default=None),
 ):
     """Proxy recent decision history."""
     params: Dict[str, Any] = {"limit": limit, "offset": offset}
     if action:
         params["action"] = action
+    if success is not None:
+        params["success"] = success
     return await _proxy_get("/api/v1/history", params=params)
+
+
+@router.get("/history/stats")
+async def get_history_stats():
+    """Proxy decision history statistics."""
+    return await _proxy_get("/api/v1/history/stats")
+
+
+@router.get("/history/{observation_id}")
+async def get_history_observation(observation_id: str):
+    """Proxy specific observation details by UUID."""
+    return await _proxy_get(f"/api/v1/history/{observation_id}")
+
+
+@router.get("/intelligence/summary")
+async def get_intelligence_summary(
+    window: Optional[str] = Query(default=None),
+    start_time: Optional[str] = Query(default=None),
+    end_time: Optional[str] = Query(default=None),
+):
+    """Proxy historical intelligence statistical summary."""
+    params: Dict[str, Any] = {}
+    if window:
+        params["window"] = window
+    if start_time:
+        params["start_time"] = start_time
+    if end_time:
+        params["end_time"] = end_time
+    return await _proxy_get("/api/v1/intelligence/history/summary", params=params)
+
+
+@router.get("/intelligence/trends")
+async def get_intelligence_trends(
+    window: Optional[str] = Query(default="1h"),
+    start_time: Optional[str] = Query(default=None),
+    end_time: Optional[str] = Query(default=None),
+    bucket_seconds: Optional[int] = Query(default=None),
+):
+    """Proxy historical trend time-bucketed series."""
+    params: Dict[str, Any] = {}
+    if window:
+        params["window"] = window
+    if start_time:
+        params["start_time"] = start_time
+    if end_time:
+        params["end_time"] = end_time
+    if bucket_seconds:
+        params["bucket_seconds"] = bucket_seconds
+    return await _proxy_get("/api/v1/intelligence/history/trends", params=params)
+
+
+@router.get("/intelligence/divergence")
+async def get_intelligence_divergence(
+    window: Optional[str] = Query(default="1h"),
+    start_time: Optional[str] = Query(default=None),
+    end_time: Optional[str] = Query(default=None),
+):
+    """Proxy historical HPA divergence metrics."""
+    params: Dict[str, Any] = {}
+    if window:
+        params["window"] = window
+    if start_time:
+        params["start_time"] = start_time
+    if end_time:
+        params["end_time"] = end_time
+    return await _proxy_get("/api/v1/intelligence/history/divergence", params=params)
+
+
+@router.get("/intelligence/anomalies")
+async def get_intelligence_anomalies(
+    window: Optional[str] = Query(default="1h"),
+    start_time: Optional[str] = Query(default=None),
+    end_time: Optional[str] = Query(default=None),
+    observation_id: Optional[str] = Query(default=None),
+):
+    """Proxy real-time anomaly intelligence assessment against historical baselines."""
+    params: Dict[str, Any] = {}
+    if window:
+        params["window"] = window
+    if start_time:
+        params["start_time"] = start_time
+    if end_time:
+        params["end_time"] = end_time
+    if observation_id:
+        params["observation_id"] = observation_id
+    return await _proxy_get("/api/v1/intelligence/anomalies", params=params)
 
 
 @router.post("/decision/orchestrate")

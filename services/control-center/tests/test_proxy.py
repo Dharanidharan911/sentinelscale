@@ -195,3 +195,134 @@ async def test_proxy_upstream_error_passthrough():
         assert "404" in resp.json()["detail"]
 
 
+@pytest.mark.asyncio
+async def test_proxy_history_stats_success():
+    mock_response = httpx.Response(
+        200,
+        json={
+            "total_observations": 42,
+            "successful_observations": 40,
+            "failed_observations": 2,
+            "success_rate": 0.952,
+            "retention_days": 7
+        },
+        request=httpx.Request("GET", "http://platform:8003/api/v1/history/stats")
+    )
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = mock_response
+        resp = client.get("/api/proxy/history/stats")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_observations"] == 42
+        assert data["success_rate"] == 0.952
+
+
+@pytest.mark.asyncio
+async def test_proxy_history_observation_by_id():
+    mock_response = httpx.Response(
+        200,
+        json={
+            "id": "obs-abc-123",
+            "decision_id": "dec-abc-123",
+            "action": "HOLD",
+            "recommended_pods": 3
+        },
+        request=httpx.Request("GET", "http://platform:8003/api/v1/history/obs-abc-123")
+    )
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = mock_response
+        resp = client.get("/api/proxy/history/obs-abc-123")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == "obs-abc-123"
+        assert data["action"] == "HOLD"
+
+
+@pytest.mark.asyncio
+async def test_proxy_intelligence_summary_success():
+    mock_response = httpx.Response(
+        200,
+        json={
+            "window": "1h",
+            "observation_count": 12,
+            "average_traffic_risk": 0.45,
+            "average_predicted_demand_rps": 65.0
+        },
+        request=httpx.Request("GET", "http://platform:8003/api/v1/intelligence/history/summary")
+    )
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = mock_response
+        resp = client.get("/api/proxy/intelligence/summary?window=1h")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["observation_count"] == 12
+        assert data["average_traffic_risk"] == 0.45
+
+
+@pytest.mark.asyncio
+async def test_proxy_intelligence_trends_success():
+    mock_response = httpx.Response(
+        200,
+        json={
+            "window": "1h",
+            "total_buckets": 2,
+            "buckets": [
+                {
+                    "bucket_start": "2026-09-06T14:00:00Z",
+                    "bucket_end": "2026-09-06T14:30:00Z",
+                    "total_observations": 6,
+                    "average_predicted_legitimate_rps": 50.0,
+                    "average_traffic_risk": 0.3,
+                    "average_current_capacity_rps": 150.0,
+                    "average_recommended_pods": 3.0,
+                    "average_baseline_hpa_pods": 4.0
+                }
+            ]
+        },
+        request=httpx.Request("GET", "http://platform:8003/api/v1/intelligence/history/trends")
+    )
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = mock_response
+        resp = client.get("/api/proxy/intelligence/trends?window=1h")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_buckets"] == 2
+        assert len(data["buckets"]) == 1
+        assert data["buckets"][0]["average_recommended_pods"] == 3.0
+
+
+@pytest.mark.asyncio
+async def test_proxy_intelligence_anomalies_success():
+    mock_response = httpx.Response(
+        200,
+        json={
+            "observation_id": "obs-latest",
+            "timestamp": "2026-09-06T14:30:00Z",
+            "overall_severity": "ELEVATED",
+            "signals": [
+                {
+                    "metric": "traffic_risk",
+                    "current_value": 0.85,
+                    "baseline_mean": 0.20,
+                    "baseline_stddev": 0.10,
+                    "deviation": 0.65,
+                    "z_score": 6.5,
+                    "severity": "ELEVATED",
+                    "direction": "HIGHER_THAN_BASELINE",
+                    "sample_count": 15,
+                    "interpretation": "Traffic risk significantly above historical baseline."
+                }
+            ],
+            "explanation": "Traffic risk is elevated compared to historical baseline.",
+            "pattern_notes": ["Sudden surge in malicious traffic"]
+        },
+        request=httpx.Request("GET", "http://platform:8003/api/v1/intelligence/anomalies")
+    )
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = mock_response
+        resp = client.get("/api/proxy/intelligence/anomalies?window=1h")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["overall_severity"] == "ELEVATED"
+        assert len(data["signals"]) == 1
+        assert data["signals"][0]["z_score"] == 6.5

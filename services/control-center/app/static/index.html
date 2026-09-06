@@ -327,71 +327,165 @@
       </div>
     </section>
 
-    <!-- ROW 3: DECISION HISTORY & OBSERVABILITY SHORTCUTS -->
-    <div class="grid-2-col">
-      <!-- DECISION HISTORY TABLE -->
-      <div class="telemetry-card history-card">
+    <!-- ROW 3: HISTORICAL TRENDS & REAL-TIME ANOMALY INTELLIGENCE -->
+    <div class="grid-2-col-equal">
+      <!-- 1. HISTORICAL OPERATIONAL TRENDS -->
+      <div class="telemetry-card trend-card">
         <div class="card-header">
-          <span class="card-title">Recent Decision Audit Feed</span>
-          <span class="card-badge">LIVE HISTORY</span>
+          <div class="header-with-badge">
+            <span class="card-title">📈 Historical Operational Trends</span>
+            <span class="card-badge" id="trend-window-badge">1H WINDOW</span>
+          </div>
+          <div class="window-controls">
+            <button class="btn-tab active" data-window="1h" onclick="window.selectTrendWindow('1h')">1h</button>
+            <button class="btn-tab" data-window="6h" onclick="window.selectTrendWindow('6h')">6h</button>
+            <button class="btn-tab" data-window="24h" onclick="window.selectTrendWindow('24h')">24h</button>
+          </div>
         </div>
-        <div class="table-wrapper">
-          <table class="history-table">
-            <thead>
-              <tr>
-                <th>Time (UTC)</th>
-                <th>Action</th>
-                <th>SS Pods</th>
-                <th>HPA Pods</th>
-                <th>Delta</th>
-                <th>Risk</th>
-                <th>Trace</th>
-              </tr>
-            </thead>
-            <tbody id="history-tbody">
-              <tr>
-                <td colspan="7" class="loading-cell">Loading decision history...</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="card-body trend-card-body">
+          <div class="trend-legend">
+            <span class="legend-item"><span class="legend-dot dot-demand"></span>Legit Demand (RPS)</span>
+            <span class="legend-item"><span class="legend-dot dot-capacity"></span>Capacity (RPS)</span>
+            <span class="legend-item"><span class="legend-dot dot-risk"></span>Traffic Risk</span>
+            <span class="legend-item"><span class="legend-dot dot-pods"></span>Replicas (Pods)</span>
+          </div>
+          <div class="trend-chart-wrapper" id="trend-chart-container">
+            <svg id="trend-chart-svg" viewBox="0 0 540 180" class="trend-svg" preserveAspectRatio="none">
+              <!-- SVG chart elements populated by app.js -->
+            </svg>
+          </div>
+          <div class="trend-stats-row">
+            <div class="trend-stat">
+              <span class="tstat-label">Avg Demand:</span>
+              <span class="tstat-val" id="tstat-avg-demand">-- RPS</span>
+            </div>
+            <div class="trend-stat">
+              <span class="tstat-label">Peak Risk:</span>
+              <span class="tstat-val" id="tstat-peak-risk">--</span>
+            </div>
+            <div class="trend-stat">
+              <span class="tstat-label">Mean Divergence:</span>
+              <span class="tstat-val" id="tstat-avg-div">--</span>
+            </div>
+            <div class="trend-stat">
+              <span class="tstat-label">Buckets:</span>
+              <span class="tstat-val" id="tstat-buckets">--</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- OBSERVABILITY SHORTCUTS & DRILL-DOWNS -->
-      <div class="telemetry-card obs-card">
+      <!-- 2. BEHAVIORAL BASELINE & ANOMALY INTELLIGENCE -->
+      <div class="telemetry-card anomaly-card">
         <div class="card-header">
-          <span class="card-title">Observability Drill-Down</span>
-          <span class="card-badge">TELEMETRY STACK</span>
+          <div class="header-with-badge">
+            <span class="card-title">🚨 Behavioral Baseline & Anomaly Intelligence</span>
+            <span class="card-badge badge-anomaly" id="anomaly-overall-badge">NORMAL</span>
+          </div>
+          <span class="anomaly-meta" id="anomaly-sample-count">Baseline: -- samples</span>
         </div>
-        <div class="obs-grid">
-          <a href="http://localhost:3000/d/sentinelscale-unified-obs" target="_blank" class="obs-tile">
-            <span class="tile-icon">📊</span>
-            <span class="tile-title">Grafana Unified Dashboard</span>
-            <span class="tile-desc">Full-stack metrics, Loki logs, & Tempo waterfall traces</span>
-          </a>
-          <a href="http://localhost:3000/d/sentinelscale-infra-obs" target="_blank" class="obs-tile">
-            <span class="tile-icon">📈</span>
-            <span class="tile-title">Grafana Infrastructure</span>
-            <span class="tile-desc">HPA Baseline, CPU/Memory telemetry, & Replica comparison</span>
-          </a>
-          <a href="http://localhost:3200" target="_blank" class="obs-tile" id="tempo-shortcut">
-            <span class="tile-icon">🔍</span>
-            <span class="tile-title">Tempo Tracing</span>
-            <span class="tile-desc">Direct OTel distributed trace search & span graph</span>
-          </a>
-          <a href="http://localhost:3100" target="_blank" class="obs-tile">
-            <span class="tile-icon">📜</span>
-            <span class="tile-title">Loki Log Streams</span>
-            <span class="tile-desc">Structured JSON logs indexed with trace_id & otel_trace_id</span>
-          </a>
+        <div class="card-body anomaly-card-body">
+          <!-- Human-Readable Anomaly Explanation Callout -->
+          <div class="anomaly-explanation-box" id="anomaly-explanation-container">
+            <span class="explanation-icon">ℹ️</span>
+            <span class="explanation-text" id="anomaly-explanation-text">
+              Evaluating behavioral deviations against historical rolling baseline...
+            </span>
+          </div>
+
+          <!-- Per-Signal Deviation Grid -->
+          <div class="anomaly-signals-container" id="anomaly-signals-grid">
+            <div class="loading-cell">Loading anomaly signals...</div>
+          </div>
+
+          <!-- Pattern Notes / Detected Behaviors -->
+          <div class="anomaly-pattern-box" id="anomaly-pattern-container" style="display: none;">
+            <span class="pattern-title">Detected Patterns:</span>
+            <div class="pattern-chips" id="anomaly-pattern-chips"></div>
+          </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ROW 4: DECISION HISTORY & AUDIT TRAIL -->
+    <div class="telemetry-card history-card-full">
+      <div class="card-header">
+        <div class="header-with-badge">
+          <span class="card-title">📜 Decision History & Audit Trail</span>
+          <span class="card-badge" id="history-total-badge">-- OBSERVATIONS</span>
+        </div>
+        <div class="history-controls">
+          <div class="history-stats-pill" id="history-stats-summary">
+            <span>Success Rate: <strong id="hist-success-rate">100%</strong></span>
+            <span>Retention: <strong id="hist-retention">7 Days</strong></span>
+          </div>
+          <select id="history-action-filter" class="history-filter-select" onchange="window.filterHistoryAction(this.value)">
+            <option value="">All Actions</option>
+            <option value="HOLD">HOLD Only</option>
+            <option value="SCALE">SCALE Only</option>
+            <option value="RATE_LIMIT">RATE_LIMIT Only</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="window.refreshHistory()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table class="history-table history-table-detailed">
+          <thead>
+            <tr>
+              <th>Timestamp (UTC)</th>
+              <th>Action</th>
+              <th>SS Pods</th>
+              <th>HPA Pods</th>
+              <th>Delta</th>
+              <th>Legit Demand</th>
+              <th>Traffic Risk</th>
+              <th>Status</th>
+              <th>Trace ID</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <tr>
+              <td colspan="9" class="loading-cell">Loading decision audit log...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ROW 5: OBSERVABILITY SHORTCUTS & DRILL-DOWNS -->
+    <div class="telemetry-card obs-card">
+      <div class="card-header">
+        <span class="card-title">🔍 Telemetry Drill-Down & Observability Suite</span>
+        <span class="card-badge">UNIFIED STACK</span>
+      </div>
+      <div class="obs-grid obs-grid-4">
+        <a href="http://localhost:3000/d/sentinelscale-unified-obs" target="_blank" class="obs-tile">
+          <span class="tile-icon">📊</span>
+          <span class="tile-title">Grafana Unified Dashboard</span>
+          <span class="tile-desc">Full-stack metrics, Loki logs, & Tempo waterfall traces</span>
+        </a>
+        <a href="http://localhost:3000/d/sentinelscale-infra-obs" target="_blank" class="obs-tile">
+          <span class="tile-icon">📈</span>
+          <span class="tile-title">Grafana Infrastructure</span>
+          <span class="tile-desc">HPA Baseline, CPU/Memory telemetry, & Replica comparison</span>
+        </a>
+        <a href="http://localhost:3200" target="_blank" class="obs-tile" id="tempo-shortcut">
+          <span class="tile-icon">🔍</span>
+          <span class="tile-title">Tempo Distributed Tracing</span>
+          <span class="tile-desc">Direct OTel trace search & service dependency graph</span>
+        </a>
+        <a href="http://localhost:3100" target="_blank" class="obs-tile">
+          <span class="tile-icon">📜</span>
+          <span class="tile-title">Loki Structured Logs</span>
+          <span class="tile-desc">Structured JSON logs correlated by trace_id</span>
+        </a>
       </div>
     </div>
   </main>
 
   <footer class="app-footer">
     <span>SentinelScale Cloud Resource Intelligence & Security-Aware Autoscaling Platform</span>
-    <span>Stage M3-11A Control Center UI • Dry-Run Invariant Verified</span>
+    <span>Stage M3-11C History & Anomaly Intelligence • Invariant: Read-Only Shadow Mode</span>
   </footer>
 
   <script src="/static/app.js"></script>

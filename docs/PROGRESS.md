@@ -42,6 +42,8 @@
 | **Stage M3-9** | **OpenTelemetry Foundation & Distributed Tracing** | **✅ COMPLETE** |
 | **Stage M3-10** | **Unified Observability (Metrics ➔ Logs ➔ Traces)** | **✅ COMPLETE** |
 | **Stage M3-11A** | **Control Center UI Foundation & Read-Only API Integration** | **✅ COMPLETE** |
+| **Stage M3-11B** | **Scaling Comparison & Decision Explainability** | **✅ COMPLETE** |
+| **Stage M3-11C** | **History & Anomaly Intelligence** | **✅ COMPLETE** |
 
 ---
 
@@ -58,8 +60,8 @@ python run_tests.py
 | **Traffic Intelligence (M1)** | 5 passed | ✅ |
 | **Demand Intelligence (M2)** | 100 passed | ✅ |
 | **Platform & Decision Engine (M3)** | 313 passed | ✅ |
-| **Control Center (UI Service)** | 9 passed | ✅ |
-| **Total** | **436 passed** | **✅ ALL PASSING** |
+| **Control Center (UI Service)** | 16 passed | ✅ |
+| **Total** | **443 passed** | **✅ ALL PASSING** |
 
 
 ---
@@ -184,6 +186,9 @@ python run_tests.py
 
 ### Stage M3-11B: Scaling Comparison & Decision Explainability
 - [x] `services/control-center/app/static/` & `services/control-center/tests/` — Upgraded Control Center with centerpiece Reactive HPA Baseline vs SentinelScale Security-Aware side-by-side comparison, directional Pod Delta badge with human-readable interpretation narrative, 6-step Causal Decision Pipeline ribbon ("Why SentinelScale?"), contributing security signals tags, deterministic explainability rationale callout, evaluation age tracker with stale warning, and direct Tempo/Grafana trace deep-links. Validated live against running Docker Compose stack with 0 scaling mutations.
+
+### Stage M3-11C: History & Anomaly Intelligence
+- [x] `services/control-center/` — Implemented comprehensive historical trend visualization with interactive window selection (`1h`, `6h`, `24h`), native SVG multi-series chart (Demand RPS, Capacity RPS, Security Risk, Replicas), real-time Behavioral Baseline & Anomaly Intelligence dashboard (overall severity pill, baseline sample count tracker, deterministic human-readable explanation callout, per-signal deviation cards displaying value, baseline mean, z-score, direction arrows, and detected pattern chips), extended 9-column decision audit trail with action filtering (`ALL`, `HOLD`, `SCALE`, `RATE_LIMIT`), status indicators, retention tracking, and trace drill-downs. Validated end-to-end with live ObservationScheduler and zero scaling mutations.
 
 ---
 
