@@ -46,7 +46,7 @@
 - **Phase M1-1 (Feature Specification)**: Rigorous formal specification of all available and unavailable traffic features across volume, client, HTTP, and temporal categories. Output: `docs/TRAFFIC_INTELLIGENCE_SPEC.md`.
 - **Phase M1-2 (Reproducible Experiment Dataset)**: Deterministic synthetic dataset generator parameterized across canonical scenarios A, B, C, D with scenario-derived labels (`LEGITIMATE`, `MALICIOUS`, `MIXED`). Output: `services/traffic-intelligence/tools/generate_dataset.py`.
 - **Phase M1-3 (Baseline Benchmark)**: Quantitative benchmarking of the heuristic engine across 1,000 observations measuring precision, recall, F1, FPR, FNR, confusion matrix, and sub-millisecond latency. Output: `docs/TRAFFIC_MODEL_BASELINE.md` and `services/traffic-intelligence/tools/benchmark.py`.
-- **Phase M1-4 (Isolation Forest Hybrid Integration)**: Unsupervised Isolation Forest model trained on legitimate baseline traffic, integrated with the heuristic pipeline via weighted hybrid scoring formula. Flash crowd protection guard prevents false risk elevation. 100% F1 maintained. Safe fallback to heuristic-only if model unavailable. Output: `app/pipeline/ml_detector.py`, `tools/train_isolation_forest.py`, `docs/TRAFFIC_ML_EVALUATION.md`, `docs/ai/MEMBER1_IMPLEMENTATION_CONTEXT.md`.
+- **Phase M1-4 (Isolation Forest Hybrid Integration & Hardening)**: Unsupervised Isolation Forest model trained on legitimate baseline traffic, integrated with the heuristic pipeline via weighted hybrid scoring formula. Flash crowd protection guard prevents false risk elevation. Hardened with canonical feature normalization (`TOTAL_RPS_SCALE = 2000.0`), single `decision_function` traversal, single-threaded inference (`n_jobs=1`), cold-start warm-up, pre-allocated buffer, and canonical training path via `FeatureExtractor`. Safe fallback to heuristic-only if model unavailable. Output: `app/pipeline/ml_detector.py`, `tools/train_isolation_forest.py`, `docs/TRAFFIC_ML_EVALUATION.md`, `docs/ai/MEMBER1_IMPLEMENTATION_CONTEXT.md`.
 
 ## 7. Remaining Phases
 - **Phase M1-5**: Real telemetry ingestion (REST endpoint consuming live API gateway metrics).
@@ -58,7 +58,7 @@
 - **Phase M1-12**: MLflow lifecycle management.
 
 ## 8. Test & Verification Status
-- All 24 Traffic Intelligence unit, contract, scenario, benchmark, and ML tests pass.
+- All 31 Traffic Intelligence unit, contract, scenario, benchmark, and ML tests pass.
 - All 4 microservices pass in repository test runner (`python run_tests.py` -> 4 suites passed).
 - Test execution commands:
   ```powershell
