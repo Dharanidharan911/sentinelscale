@@ -123,13 +123,21 @@ Feature-Engineered Regularized Ridge Linear Regression:
 3. **Fallback Safety**: If observations are fewer than 4 or if numerical anomalies occur, gracefully falls back to baseline `demand-v1`.
 4. **Configuration (M2-7)**: Activated via `FORECAST_MODEL=ml` or `FORECAST_MODEL=demand-ml-v1`.
 
+### 3. Data Quality, Seasonality & Explainability (M2-8 through M2-14)
+- **Data Quality Intelligence (M2-12)**: `app/engine/data_quality.py` analyzes observation completeness, sampling cadence regularity, staleness, and noise-to-signal ratio to assign continuous scores and categorical ratings (`EXCELLENT`, `GOOD`, `DEGRADED`, `POOR`).
+- **Seasonality Engine (M2-13)**: `app/engine/seasonality.py` detects cyclical patterns via autocorrelation peak analysis and Fourier harmonic regression when observation history covers at least 2 full periods. Falls back cleanly to non-seasonal RWMA projection when cycles are unconfirmed.
+- **Horizon & Regularity Dilated Prediction Intervals (M2-9)**: Evaluates dynamic interval expansion ($\sigma \sqrt{1 + h / \max(T, 30)}$) with cadence jitter dilation, strictly preserving $0 \le \text{lower} \le \text{predicted} \le \text{upper}$.
+- **Calibrated Confidence Scoring (M2-10)**: Multi-factor confidence score calibrated against sample scarcity, CV, horizon ratio, cadence irregularity, and data quality.
+- **Explicit Failure & Fallback Handling (M2-11)**: Strict error semantics (422 for insufficient data, 503 for provider outages). ML candidate numerical anomalies transparently fall back to baseline `demand-v1`. Errors never emit silent 0.0 RPS.
+- **Forecast Explainability (M2-14)**: `app/engine/explainability.py` synthesizes deterministic reason tags (`MODEL_*`, `QUALITY_*`, `TREND_*`, `VOLATILITY_*`, `SEASONALITY_*`, `UNCERTAINTY_*`) attached to HTTP response headers (`X-Forecast-Explanation`, `X-Forecast-Quality`) and structured JSON logs without altering frozen contract v1.0.0.
+
 ### Confidence Semantics
 
 | Confidence | Meaning |
 |---|---|
-| `≥ 0.85` | High confidence — strong historical signal, low variance |
+| `≥ 0.85` | High confidence — strong historical signal, low variance, fresh telemetry |
 | `0.5–0.85` | Moderate confidence — reasonable signal |
-| `< 0.5` | Low confidence — sparse data or high variance |
+| `< 0.5` | Low confidence — sparse data, high variance, or long horizon |
 | `< 0.3` | Very low — Member 3 should consider `HOLD` |
 
 ---
@@ -169,7 +177,7 @@ Run the reproducible benchmark suite comparing baseline vs ML candidate:
 python -m benchmarks.benchmark_suite
 ```
 
-Findings: Baseline (`demand-v1`) achieved 54.19 RPS MAE vs ML candidate (`demand-ml-v1`) 180.43 RPS MAE across 6 synthetic scenarios due to surge-damping properties during flash surges. Baseline remains the production default. Full report in `benchmarks/BENCHMARK_REPORT.md`.
+Findings: Baseline (`demand-v1`) achieved 54.71 RPS MAE and 83.3% interval coverage vs ML candidate (`demand-ml-v1`) 180.43 RPS MAE and 66.7% coverage across 6 synthetic scenarios. Baseline remains the production default. Full report in `benchmarks/BENCHMARK_REPORT.md`.
 
 ---
 
@@ -180,7 +188,7 @@ Findings: Baseline (`demand-v1`) achieved 54.19 RPS MAE vs ML candidate (`demand
 python -m pytest services/demand-intelligence/tests -v -o "pythonpath=services/demand-intelligence"
 ```
 
-**Expected result:** 121 tests passing, 0 failing.
+**Expected result:** 159 tests passing, 0 failing.
 
 ---
 
@@ -197,8 +205,7 @@ python -m pytest services/demand-intelligence/tests -v -o "pythonpath=services/d
 | Limitation | Impact |
 |---|---|
 | Default query metric is not yet emitted by repository services | Configure a query matching deployed telemetry before enabling Prometheus |
-| Linear trend model | Does not capture seasonality, non-linear patterns |
-| No persistence | History lives only within the request; no database |
+| Stateful persistence | History lives within the request or telemetry query; no internal database |
 
 ---
 

@@ -8,30 +8,30 @@
 
 | Scenario | Model | MAE (RPS) | RMSE (RPS) | Latency (ms) | Interval Coverage | Interval Width (RPS) |
 |---|---|---|---|---|---|---|
-| `steady_growth` | `demand-v1` | 72.90 | 72.90 | 0.310 | 100% | 259.48 |
-| `steady_growth` | `demand-ml-v1` | 60.01 | 60.01 | 1.853 | 100% | 259.48 |
-| `steady_decline` | `demand-v1` | 58.32 | 58.32 | 0.163 | 100% | 207.59 |
-| `steady_decline` | `demand-ml-v1` | 48.00 | 48.00 | 1.497 | 100% | 207.59 |
-| `flat` | `demand-v1` | 3.35 | 3.35 | 0.126 | 100% | 9.88 |
-| `flat` | `demand-ml-v1` | 5.08 | 5.08 | 1.685 | 0% | 9.88 |
-| `sinusoidal` | `demand-v1` | 64.85 | 64.85 | 0.144 | 0% | 45.26 |
-| `sinusoidal` | `demand-ml-v1` | 28.41 | 28.41 | 1.629 | 0% | 45.26 |
-| `flash_surge` | `demand-v1` | 114.11 | 114.11 | 0.137 | 100% | 1039.23 |
-| `flash_surge` | `demand-ml-v1` | 882.60 | 882.60 | 1.632 | 0% | 1039.23 |
-| `noisy` | `demand-v1` | 11.59 | 11.59 | 0.141 | 100% | 96.44 |
-| `noisy` | `demand-ml-v1` | 58.50 | 58.50 | 1.696 | 0% | 96.44 |
+| `steady_growth` | `demand-v1` | 72.90 | 72.90 | 0.512 | 100% | 320.58 |
+| `steady_growth` | `demand-ml-v1` | 60.01 | 60.01 | 2.026 | 100% | 320.58 |
+| `steady_decline` | `demand-v1` | 58.32 | 58.32 | 0.348 | 100% | 256.46 |
+| `steady_decline` | `demand-ml-v1` | 48.00 | 48.00 | 1.583 | 100% | 256.46 |
+| `flat` | `demand-v1` | 3.35 | 3.35 | 0.276 | 100% | 12.21 |
+| `flat` | `demand-ml-v1` | 5.08 | 5.08 | 1.685 | 100% | 12.21 |
+| `sinusoidal` | `demand-v1` | 64.85 | 64.85 | 0.255 | 0% | 55.92 |
+| `sinusoidal` | `demand-ml-v1` | 28.41 | 28.41 | 1.660 | 0% | 55.92 |
+| `flash_surge` | `demand-v1` | 114.11 | 114.11 | 0.359 | 100% | 1283.91 |
+| `flash_surge` | `demand-ml-v1` | 882.60 | 882.60 | 1.634 | 0% | 1283.91 |
+| `noisy` | `demand-v1` | 14.70 | 14.70 | 0.325 | 100% | 119.15 |
+| `noisy` | `demand-ml-v1` | 58.50 | 58.50 | 1.644 | 100% | 119.15 |
 
 ## 2. Overall Summary Aggregate
 
 | Metric | Baseline (`demand-v1`) | ML Candidate (`demand-ml-v1`) | Delta (ML vs Baseline) |
 |---|---|---|---|
-| **Overall MAE** | 54.19 RPS | 180.43 RPS | +126.24 RPS |
-| **Overall RMSE** | 65.94 RPS | 362.66 RPS | +296.72 RPS |
-| **Mean Latency** | 0.1702 ms | 1.6652 ms | +1.4950 ms |
-| **Interval Coverage** | 83.3% | 33.3% | -50.0% |
-| **Mean Interval Width** | 276.31 RPS | 276.31 RPS | +0.00 RPS |
+| **Overall MAE** | 54.71 RPS | 180.43 RPS | +125.73 RPS |
+| **Overall RMSE** | 66.04 RPS | 362.66 RPS | +296.62 RPS |
+| **Mean Latency** | 0.3458 ms | 1.7051 ms | +1.3593 ms |
+| **Interval Coverage** | 83.3% | 66.7% | -16.7% |
+| **Mean Interval Width** | 341.37 RPS | 341.37 RPS | +0.00 RPS |
 
 ## 3. Evaluation Conclusion
 
-- **Finding**: While the ML candidate (`demand-ml-v1`) achieved lower error on smooth patterns (`steady_growth`, `steady_decline`, `sinusoidal`), it suffered from explosive projections during step discontinuities (`flash_surge`) and high noise, leading to higher overall MAE (180.43 vs 54.19 RPS) and lower interval coverage (33.3% vs 83.3%).
-- **Operational Recommendation**: Baseline model (`demand-v1`) is retained as the default preferred production provider due to its superior surge-resilience, bounded slope clamping, and 10x faster execution (0.17 ms). The ML candidate (`demand-ml-v1`) is preserved and integrated as an opt-in configurable alternative via `FORECAST_MODEL=ml` or `FORECAST_MODEL=demand-ml-v1`.
+- **Finding**: With horizon and regularity dilated prediction intervals (M2-9), the ML candidate (`demand-ml-v1`) interval coverage improved from 33.3% to 66.7% while maintaining lower error on steady growth and decline. However, during sharp step discontinuities (`flash_surge`), baseline (`demand-v1`) remains more resilient (MAE 54.71 vs 180.43 RPS) and 5x faster in execution latency (0.35 ms vs 1.71 ms).
+- **Operational Recommendation**: Baseline model (`demand-v1`) is retained as the default preferred production provider. The ML candidate (`demand-ml-v1`) is preserved and integrated as an opt-in configurable alternative via `FORECAST_MODEL=ml`.

@@ -19,13 +19,14 @@ from typing import List, Optional, Tuple
 
 from app.models.demand import DemandForecast, DemandObservation
 from app.engine.preprocessor import preprocess_observations, compute_statistics
+from app.engine.data_quality import DataQualityAssessor
 from app.engine.features import (
     DemandFeatureExtractor,
     DemandFeatureVector,
     MIN_OBSERVATIONS_FOR_FEATURES,
     compute_cadence_regularity,
 )
-from app.engine.forecaster import produce_forecast, _compute_confidence
+from app.engine.forecaster import produce_forecast, _compute_confidence, compute_prediction_interval
 from app.errors import InsufficientDataError, ForecastCalculationError
 from app.config.settings import settings
 from app.logging import logger
@@ -175,22 +176,32 @@ class MLDemandForecaster:
                 raw_prediction = self._heuristic_ridge_projection(features, forecast_horizon_seconds)
 
             # Step 5: Sanity and Boundary Clamping
-            predicted = max(0.0, float(raw_prediction))
-            if not math.isfinite(predicted):
+            val = float(raw_prediction)
+            if not math.isfinite(val):
                 # Fallback on numerical anomaly
                 return produce_forecast(cleaned, forecast_horizon_seconds, trace_id=trace_id)
+            predicted = max(0.0, val)
 
-            # Step 6: Prediction Intervals
-            half_width = settings.FORECAST_INTERVAL_HALF_WIDTH_SIGMA * max(std_dev_rps, 1.0)
-            lower = max(0.0, predicted - half_width)
-            upper = predicted + half_width
-            lower = min(lower, predicted)
-            upper = max(upper, predicted)
-
-            # Step 7: Confidence Estimation
+            # Step 6: Prediction Intervals with horizon and regularity dilation (M2-9)
             regularity = compute_cadence_regularity(cleaned)
+            lower, upper = compute_prediction_interval(
+                predicted=predicted,
+                std_dev_rps=max(std_dev_rps, 1.0),
+                time_span=time_span,
+                forecast_horizon_seconds=forecast_horizon_seconds,
+                sampling_regularity=regularity,
+            )
+
+            # Step 7: Confidence Estimation with Data Quality Calibration (M2-10, M2-12)
+            quality_report = DataQualityAssessor.assess(cleaned)
             confidence = _compute_confidence(
-                n, mean_rps, std_dev_rps, time_span, forecast_horizon_seconds, regularity
+                n_samples=n,
+                mean_rps=mean_rps,
+                std_dev_rps=std_dev_rps,
+                time_span=time_span,
+                horizon=forecast_horizon_seconds,
+                sampling_regularity=regularity,
+                data_quality_score=quality_report.quality_score,
             )
 
             # Step 8: Build Frozen Contract

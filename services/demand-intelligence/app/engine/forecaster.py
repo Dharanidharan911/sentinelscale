@@ -25,6 +25,8 @@ from typing import List
 
 from app.models.demand import DemandForecast, DemandObservation
 from app.engine.preprocessor import preprocess_observations, compute_statistics
+from app.engine.data_quality import DataQualityAssessor, DataQualityReport
+from app.engine.seasonality import SeasonalityDetector, SeasonalityResult
 from app.errors import InsufficientDataError, ForecastCalculationError
 from app.config.settings import settings
 
@@ -64,14 +66,17 @@ def _compute_confidence(
     time_span: float,
     horizon: int,
     sampling_regularity: float = 1.0,
+    data_quality_score: float = 1.0,
 ) -> float:
     """
-    Compute a [0.0, 1.0] confidence score.
+    Compute a [0.0, 1.0] calibrated confidence score.
 
     Factors:
     1. Sample confidence: saturates towards 1.0 as sample count grows.
     2. Variance confidence: lower coefficient of variation → higher confidence.
     3. Horizon confidence: penalizes forecasting far beyond historical time span.
+    4. Cadence regularity: penalizes jittery sampling intervals.
+    5. Data quality calibration: accounts for completeness and staleness.
     """
     # Sample confidence: sigmoid-like, saturates at FORECAST_SAMPLE_CONFIDENCE_SCALE samples
     sample_conf = 1.0 - math.exp(-n_samples / settings.FORECAST_SAMPLE_CONFIDENCE_SCALE)
@@ -93,8 +98,12 @@ def _compute_confidence(
         -(1.0 - max(0.0, min(1.0, sampling_regularity)))
         / settings.FORECAST_REGULARITY_CONFIDENCE_SCALE
     )
-    confidence = (sample_conf * variance_conf * horizon_conf * regularity_conf) ** (1/4)
-    return round(min(1.0, max(0.0, confidence)), 4)
+    base_confidence = (sample_conf * variance_conf * horizon_conf * regularity_conf) ** (1/4)
+
+    # Calibrate against data quality score
+    quality_factor = 0.6 + 0.4 * max(0.0, min(1.0, data_quality_score))
+    calibrated = base_confidence * quality_factor
+    return round(min(1.0, max(0.0, calibrated)), 4)
 
 
 def _sampling_regularity(observations: List[DemandObservation]) -> float:
@@ -135,6 +144,44 @@ def _project_demand(
         projected = weighted_mean_rps  # no trend extrapolation with sparse data
 
     return max(0.0, projected)
+
+
+def compute_prediction_interval(
+    predicted: float,
+    std_dev_rps: float,
+    time_span: float,
+    forecast_horizon_seconds: int,
+    sampling_regularity: float = 1.0,
+    sigma_multiplier: float | None = None,
+) -> tuple[float, float]:
+    """
+    Compute bounded [lower_bound_rps, upper_bound_rps] prediction interval.
+
+    Statistical rationale:
+    - Base width is proportional to historical dispersion: z * std_dev.
+    - Horizon dilation: as the forecast horizon extends relative to the observed
+      historical time span, future uncertainty grows:
+        horizon_factor = math.sqrt(1.0 + max(0, forecast_horizon_seconds) / max(time_span, 30.0)).
+    - Regularity dilation: irregular sampling increases uncertainty:
+        regularity_factor = 1.0 + (1.0 - max(0.0, min(1.0, sampling_regularity))) * 0.5.
+    - Sanity guards:
+        * lower_bound >= 0.0
+        * lower_bound <= predicted <= upper_bound
+    """
+    z = sigma_multiplier if sigma_multiplier is not None else settings.FORECAST_INTERVAL_HALF_WIDTH_SIGMA
+    ref_span = max(time_span, settings.FORECAST_RECENCY_REFERENCE_INTERVAL_SECONDS)
+    horizon_factor = math.sqrt(1.0 + max(0, forecast_horizon_seconds) / ref_span)
+
+    reg = max(0.0, min(1.0, sampling_regularity))
+    regularity_factor = 1.0 + (1.0 - reg) * 0.5
+
+    half_width = z * std_dev_rps * horizon_factor * regularity_factor
+
+    lower = max(0.0, predicted - half_width)
+    upper = max(predicted, predicted + half_width)
+    lower = min(lower, predicted)
+
+    return round(lower, 4), round(upper, 4)
 
 
 def produce_forecast(
@@ -181,19 +228,35 @@ def produce_forecast(
     n = len(cleaned)
     predicted = _project_demand(w_mean, trend_slope, forecast_horizon_seconds, n, time_span)
 
-    # Step 5: Prediction interval (based on historical std-dev)
-    half_width = settings.FORECAST_INTERVAL_HALF_WIDTH_SIGMA * std_dev_rps
-    lower = max(0.0, predicted - half_width)
-    upper = predicted + half_width
+    # Step 4b: Seasonality Detection & Adjustment (M2-13)
+    seasonality_res = SeasonalityDetector.detect_and_adjust(
+        observations=cleaned,
+        base_projection=predicted,
+        forecast_horizon_seconds=forecast_horizon_seconds,
+    )
+    if seasonality_res.is_seasonal:
+        predicted = max(0.0, predicted + seasonality_res.seasonal_adjustment_rps)
 
-    # Sanity guard: ensure lower <= predicted <= upper
-    lower = min(lower, predicted)
-    upper = max(upper, predicted)
+    # Step 5: Prediction interval with horizon & regularity dilation (M2-9)
+    regularity = _sampling_regularity(cleaned)
+    lower, upper = compute_prediction_interval(
+        predicted=predicted,
+        std_dev_rps=std_dev_rps,
+        time_span=time_span,
+        forecast_horizon_seconds=forecast_horizon_seconds,
+        sampling_regularity=regularity,
+    )
 
-    # Step 6: Confidence
+    # Step 6: Data Quality Intelligence & Calibrated Confidence (M2-10, M2-12)
+    quality_report = DataQualityAssessor.assess(cleaned)
     confidence = _compute_confidence(
-        n, mean_rps, std_dev_rps, time_span, forecast_horizon_seconds,
-        _sampling_regularity(cleaned),
+        n_samples=n,
+        mean_rps=mean_rps,
+        std_dev_rps=std_dev_rps,
+        time_span=time_span,
+        horizon=forecast_horizon_seconds,
+        sampling_regularity=regularity,
+        data_quality_score=quality_report.quality_score,
     )
 
     # Step 7: Build the frozen contract object

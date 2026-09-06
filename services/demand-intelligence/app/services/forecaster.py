@@ -19,6 +19,7 @@ from app.providers.prometheus_provider import PrometheusDemandProvider
 from app.providers.static_provider import StaticObservationProvider
 from app.engine.forecaster import produce_forecast
 from app.engine.ml_forecaster import MLDemandForecaster
+from app.engine.explainability import ForecastExplainer, ForecastExplanation
 from app.config.settings import settings
 from app.logging import logger
 
@@ -56,8 +57,16 @@ class DemandForecastingService:
         self._model_type = model_type
 
     async def forecast_demand(self, request: ForecastRequest) -> DemandForecast:
+        """Produce a DemandForecast for the given request."""
+        forecast, _ = await self.forecast_demand_with_explanation(request)
+        return forecast
+
+    async def forecast_demand_with_explanation(
+        self,
+        request: ForecastRequest,
+    ) -> tuple[DemandForecast, ForecastExplanation]:
         """
-        Produce a DemandForecast for the given request.
+        Produce a DemandForecast along with its structured explainability report.
 
         Errors propagate explicitly:
             - InsufficientDataError → HTTP 422
@@ -87,6 +96,8 @@ class DemandForecastingService:
                 trace_id=request.trace_id,
             )
 
+        explanation = ForecastExplainer.explain(forecast, observations)
+
         logger.info(
             "Demand forecast generated",
             extra={
@@ -96,9 +107,11 @@ class DemandForecastingService:
                 "forecast_horizon_seconds": request.forecast_horizon_seconds,
                 "trace_id": forecast.trace_id,
                 "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+                "explanation_tags": explanation.all_tags,
+                "quality_rating": explanation.quality_tag,
             },
         )
-        return forecast
+        return forecast, explanation
 
     def _select_provider(
         self,
