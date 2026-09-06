@@ -80,6 +80,9 @@ services:
       - SENTINEL_DRY_RUN=${SENTINEL_DRY_RUN:-true}
       - SENTINEL_SHADOW_MODE=${SENTINEL_SHADOW_MODE:-true}
       - SENTINEL_AUTONOMOUS_ACTIONS_ENABLED=${SENTINEL_AUTONOMOUS_ACTIONS_ENABLED:-false}
+      - OTEL_TRACES_ENABLED=${OTEL_TRACES_ENABLED:-true}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      - OTEL_SERVICE_NAME=${OTEL_SERVICE_NAME:-sentinelscale-platform}
     depends_on:
       traffic-intelligence:
         condition: service_healthy
@@ -141,6 +144,25 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - sentinelscale-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: sentinelscale-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./telemetry/otel/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otelcol-contrib/config.yaml"]
       interval: 10s
       timeout: 5s
       retries: 3

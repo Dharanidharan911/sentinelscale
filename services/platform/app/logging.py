@@ -5,6 +5,7 @@ import uuid
 from datetime import datetime, timezone
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
+from app.telemetry.tracing import get_current_trace_id, get_current_span_id, extract_trace_context
 
 
 class JsonFormatter(logging.Formatter):
@@ -20,6 +21,15 @@ class JsonFormatter(logging.Formatter):
             log_data["request_id"] = record.request_id
         if hasattr(record, "trace_id"):
             log_data["trace_id"] = record.trace_id
+
+        # OpenTelemetry Trace & Span correlation
+        otel_trace_id = get_current_trace_id()
+        otel_span_id = get_current_span_id()
+        if otel_trace_id:
+            log_data["otel_trace_id"] = otel_trace_id
+        if otel_span_id:
+            log_data["otel_span_id"] = otel_span_id
+
         if hasattr(record, "endpoint"):
             log_data["endpoint"] = record.endpoint
         if hasattr(record, "latency_ms"):
@@ -54,6 +64,11 @@ class StructuredLoggingMiddleware(BaseHTTPMiddleware):
 
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Trace-ID"] = trace_id
+
+        # If OpenTelemetry trace ID is available, add to response header
+        otel_tid = get_current_trace_id()
+        if otel_tid:
+            response.headers["X-OTel-Trace-ID"] = otel_tid
 
         logger.info(
             f"{request.method} {request.url.path} completed with {response.status_code} in {latency_ms}ms",

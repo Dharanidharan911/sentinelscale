@@ -71,6 +71,12 @@ class Settings(BaseSettings):
     # Operational Metrics & Observability Configuration (Phase 4C)
     METRICS_ENABLED: bool = True
 
+    # OpenTelemetry Distributed Tracing Configuration (Stage M3-9)
+    OTEL_TRACES_ENABLED: bool = False
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4318"
+    OTEL_SERVICE_NAME: str = "platform"
+    OTEL_SAMPLING_RATIO: float = Field(default=1.0, ge=0.0, le=1.0, description="Trace sampling ratio between 0.0 and 1.0.")
+
     @field_validator("OBSERVATION_INTERVAL_SECONDS")
     @classmethod
     def validate_interval(cls, v: float) -> float:

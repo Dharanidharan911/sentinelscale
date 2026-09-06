@@ -6,20 +6,32 @@ from app.config.settings import settings
 from app.logging import StructuredLoggingMiddleware
 from app.services.metrics.factory import get_metrics_service
 from app.services.observation_scheduler import get_observation_scheduler
+from app.telemetry.tracing import init_tracing, shutdown_tracing
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """FastAPI application lifespan managing background ObservationScheduler lifecycle."""
+    """FastAPI application lifespan managing background ObservationScheduler & OpenTelemetry lifecycle."""
     scheduler = None
+    if settings.OTEL_TRACES_ENABLED:
+        init_tracing()
+        try:
+            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+            FastAPIInstrumentor.instrument_app(app)
+        except Exception:
+            pass
+
     if settings.OBSERVATION_SCHEDULER_ENABLED:
         scheduler = get_observation_scheduler()
         await scheduler.start()
+
     try:
         yield
     finally:
         if scheduler:
             await scheduler.stop()
+        if settings.OTEL_TRACES_ENABLED:
+            shutdown_tracing()
 
 
 app = FastAPI(
@@ -66,6 +78,7 @@ async def version():
         "observation_scheduler_enabled": settings.OBSERVATION_SCHEDULER_ENABLED,
         "observation_interval_seconds": settings.OBSERVATION_INTERVAL_SECONDS,
         "metrics_enabled": settings.METRICS_ENABLED,
+        "otel_traces_enabled": settings.OTEL_TRACES_ENABLED,
     }
 
 

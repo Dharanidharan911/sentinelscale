@@ -40,6 +40,7 @@
 | **Stage M3-6** | **Kubernetes Resource Intelligence & Telemetry Normalization** | **✅ COMPLETE** |
 | **Stage M3-7** | **Real Kubernetes HPA Baseline Controller** | **✅ COMPLETE** |
 | **Stage M3-8** | **HPA vs SentinelScale Experimentation** | **✅ COMPLETE** |
+| **Stage M3-9** | **OpenTelemetry Foundation & Distributed Tracing** | **✅ COMPLETE** |
 
 ---
 
@@ -55,8 +56,8 @@ python run_tests.py
 | **Demo API** | 9 passed | ✅ |
 | **Traffic Intelligence (M1)** | 5 passed | ✅ |
 | **Demand Intelligence (M2)** | 100 passed | ✅ |
-| **Platform & Decision Engine (M3)** | 296 passed, 2 skipped | ✅ |
-| **Total** | **410 passed, 2 skipped** | **✅ ALL PASSING** |
+| **Platform & Decision Engine (M3)** | 305 passed, 2 skipped | ✅ |
+| **Total** | **419 passed, 2 skipped** | **✅ ALL PASSING** |
 
 ---
 
@@ -168,6 +169,9 @@ python run_tests.py
 
 ### Stage M3-8: HPA vs SentinelScale Experimentation
 - [x] `contracts/experiments/experiment_result.schema.json`, `experiments/scenarios/`, `experiments/harness.py`, `experiments/run_experiment.py`, `services/platform/tests/test_experiment_harness.py` & `docs/STAGE_M3_8_HPA_VS_SENTINELSCALE_EXPERIMENTATION.md` — Established reproducible comparative experimentation framework between native Kubernetes HPA and SentinelScale shadow recommendations. Executed all 5 canonical scenarios (Normal, Sustained High, Sudden Spike, Recovery, Burst) plus repeated spike trial, capturing timestamp-aligned pod-seconds, replica-hours, latency/error guardrails, and decision divergence with zero SentinelScale scaling mutations.
+
+### Stage M3-9: OpenTelemetry Foundation & Distributed Tracing
+- [x] `services/platform/app/telemetry/tracing.py`, `telemetry/otel/otel-collector-config.yaml`, `infrastructure/kubernetes/otel-collector/`, `services/platform/tests/test_opentelemetry_tracing.py` & `docs/STAGE_M3_9_OPENTELEMETRY.md` — Established production-grade OpenTelemetry distributed tracing foundation, W3C `traceparent` context propagation across HTTP boundaries (`TrafficIntelligenceClient`, `DemandIntelligenceClient`), trace-to-log correlation in structured JSON logs (`otel_trace_id`, `otel_span_id`), observational span instrumentation (`ContextAggregatorService`, `DecisionEngine`), and OpenTelemetry Collector deployment definitions across Docker Compose and Kubernetes.
 
 ---
 
