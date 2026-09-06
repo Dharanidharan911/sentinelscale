@@ -137,3 +137,4 @@ In Scenario D (Mixed Traffic), 249 out of 250 samples were classified as `suspic
 The deterministic heuristic baseline establishes a fast, predictable floor:
 - **Strengths**: Extremely low latency ($< 0.03 \text{ ms}$), zero false positives on flash crowds (Scenario B correctly classified as legitimate despite $3-6\times$ RPS surge), and unambiguous explanations in `top_signals`.
 - **Target for ML (Phase M1-4 / Isolation Forest)**: The primary role of introducing an unsupervised Isolation Forest or semi-supervised anomaly detector in future phases will be to detect subtle, distributed multi-dimensional anomalies that evade fixed heuristic thresholds without increasing false positive rates on organic flash crowds.
+

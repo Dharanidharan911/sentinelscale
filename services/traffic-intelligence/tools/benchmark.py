@@ -1,8 +1,11 @@
 """
 Quantitative Benchmark Evaluation Tool for Module 1 (Traffic Intelligence).
 
-Evaluates the CURRENT heuristic Traffic Intelligence implementation against
-reproducible synthetic scenario datasets generated across canonical scenarios:
+Compares:
+  Mode 1: Pure Heuristic Rules (`traffic-rules-v1`)
+  Mode 2: Hybrid Rules + Isolation Forest ML (`traffic-hybrid-v1`)
+
+Evaluates against reproducible synthetic scenario datasets across canonical scenarios:
   Scenario A: Steady Legitimate
   Scenario B: Legitimate Flash Crowd
   Scenario C: Hostile L7
@@ -29,6 +32,7 @@ _service_root = Path(__file__).resolve().parents[1]
 if str(_service_root) not in sys.path:
     sys.path.insert(0, str(_service_root))
 
+from app.config.settings import settings
 from app.models.traffic import (
     AssessmentRequest,
     StatusCodeDistribution,
@@ -39,7 +43,14 @@ from app.pipeline.engine import TrafficIntelligenceEngine
 from tools.generate_dataset import TrafficDatasetGenerator
 
 
-def run_benchmark(samples_per_scenario: int = 250, seed: int = 42) -> Dict:
+def run_benchmark(
+    samples_per_scenario: int = 250,
+    seed: int = 42,
+    enable_ml: bool = True
+) -> Dict:
+    # Set ML toggle on settings for benchmark run
+    settings.ENABLE_ML_ANOMALY_DETECTOR = enable_ml
+
     generator = TrafficDatasetGenerator(seed=seed)
     records = generator.generate_dataset(samples_per_scenario=samples_per_scenario)
 
@@ -47,10 +58,6 @@ def run_benchmark(samples_per_scenario: int = 250, seed: int = 42) -> Dict:
 
     total_samples = len(records)
     latencies_ms = []
-
-    # Map scenario labels to binary/multiclass evaluations
-    # Scenario labels: LEGITIMATE (A, B), MALICIOUS (C), MIXED (D)
-    # Predicted classifications: legitimate, suspicious, malicious, unknown
 
     results = []
 
@@ -78,6 +85,8 @@ def run_benchmark(samples_per_scenario: int = 250, seed: int = 42) -> Dict:
             "legitimate_rps_estimate": assessment.legitimate_rps_estimate,
             "suspicious_rps_estimate": assessment.suspicious_rps_estimate,
             "total_rps": assessment.total_rps,
+            "model_version": assessment.model_version,
+            "top_signals": assessment.top_signals,
         })
 
     latencies_ms.sort()
@@ -88,18 +97,11 @@ def run_benchmark(samples_per_scenario: int = 250, seed: int = 42) -> Dict:
     total_time_s = sum(latencies_ms) / 1000.0
     throughput = round(total_samples / total_time_s, 1) if total_time_s > 0 else 0.0
 
-    # Binary Classification Metrics for Threat Detection (Malicious vs Non-Malicious)
-    # Positive class = MALICIOUS (Threat detected)
-    # Negative class = LEGITIMATE (Safe traffic)
-    # Note: MIXED contains both, evaluate how it is handled
     tp = 0
     fp = 0
     tn = 0
     fn = 0
 
-    # Multiclass confusion matrix [Actual Label][Predicted Classification]
-    # Rows: Actual (LEGITIMATE, MALICIOUS, MIXED)
-    # Cols: Predicted (legitimate, suspicious, malicious, unknown)
     classes_actual = ["LEGITIMATE", "MALICIOUS", "MIXED"]
     classes_pred = ["legitimate", "suspicious", "malicious", "unknown"]
     confusion_matrix = {a: {p: 0 for p in classes_pred} for a in classes_actual}
@@ -119,7 +121,6 @@ def run_benchmark(samples_per_scenario: int = 250, seed: int = 42) -> Dict:
         else:
             confidence_buckets["0.7-1.0"] += 1
 
-        # Binary Threat Detection evaluation (considering Legitimate vs Malicious ground truth)
         if actual == "MALICIOUS":
             if pred in ["malicious", "suspicious"]:
                 tp += 1
@@ -138,6 +139,8 @@ def run_benchmark(samples_per_scenario: int = 250, seed: int = 42) -> Dict:
     fnr = round(fn / (fn + tp), 4) if (fn + tp) > 0 else 0.0
 
     return {
+        "model_version": "traffic-hybrid-v1" if enable_ml else "traffic-rules-v1",
+        "ml_enabled": enable_ml,
         "dataset": {
             "samples_per_scenario": samples_per_scenario,
             "total_observations": total_samples,
@@ -171,36 +174,23 @@ def run_benchmark(samples_per_scenario: int = 250, seed: int = 42) -> Dict:
     }
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Benchmark heuristic Traffic Intelligence pipeline.")
-    parser.add_argument("--samples-per-scenario", type=int, default=250, help="Number of samples per scenario (total = 4x)")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed for scenario dataset generation")
-    args = parser.parse_args()
-
-    benchmark_data = run_benchmark(samples_per_scenario=args.samples_per_scenario, seed=args.seed)
-
+def print_benchmark_table(benchmark_data: Dict):
+    title = "Hybrid Rules + ML" if benchmark_data["ml_enabled"] else "Pure Heuristic Rules"
     print("=" * 60)
-    print(" SentinelScale M1: Traffic Intelligence Heuristic Baseline Benchmark")
+    print(f" SentinelScale M1 Benchmark: {title} ({benchmark_data['model_version']})")
     print("=" * 60)
-    print(f"Total observations: {benchmark_data['dataset']['total_observations']}")
-    print(f"Seed: {benchmark_data['dataset']['seed']}")
+    print(f"Observations: {benchmark_data['dataset']['total_observations']} | Seed: {benchmark_data['dataset']['seed']}")
     print("-" * 60)
     print("Latency & Throughput:")
-    print(f"  Mean latency: {benchmark_data['performance']['mean_latency_ms']} ms")
-    print(f"  P50 latency:  {benchmark_data['performance']['p50_latency_ms']} ms")
-    print(f"  P95 latency:  {benchmark_data['performance']['p95_latency_ms']} ms")
-    print(f"  P99 latency:  {benchmark_data['performance']['p99_latency_ms']} ms")
-    print(f"  Throughput:   {benchmark_data['performance']['throughput_rps']} assessments/sec")
+    p = benchmark_data['performance']
+    print(f"  Mean: {p['mean_latency_ms']} ms | P50: {p['p50_latency_ms']} ms | P95: {p['p95_latency_ms']} ms | P99: {p['p99_latency_ms']} ms")
+    print(f"  Throughput: {p['throughput_rps']} assessments/sec")
     print("-" * 60)
     print("Binary Threat Detection (Legitimate vs Malicious):")
-    metrics = benchmark_data["binary_threat_metrics"]
-    print(f"  TP: {metrics['true_positives']} | FP: {metrics['false_positives']}")
-    print(f"  TN: {metrics['true_negatives']} | FN: {metrics['false_negatives']}")
-    print(f"  Precision: {metrics['precision'] * 100:.2f}%")
-    print(f"  Recall:    {metrics['recall'] * 100:.2f}%")
-    print(f"  F1 Score:  {metrics['f1'] * 100:.2f}%")
-    print(f"  FPR:       {metrics['false_positive_rate'] * 100:.2f}%")
-    print(f"  FNR:       {metrics['false_negative_rate'] * 100:.2f}%")
+    m = benchmark_data["binary_threat_metrics"]
+    print(f"  TP: {m['true_positives']} | FP: {m['false_positives']} | TN: {m['true_negatives']} | FN: {m['false_negatives']}")
+    print(f"  Precision: {m['precision'] * 100:.2f}% | Recall: {m['recall'] * 100:.2f}% | F1: {m['f1'] * 100:.2f}%")
+    print(f"  FPR: {m['false_positive_rate'] * 100:.2f}% | FNR: {m['false_negative_rate'] * 100:.2f}%")
     print("-" * 60)
     print("Multiclass Confusion Matrix [Actual \\ Predicted]:")
     cm = benchmark_data["multiclass_confusion_matrix"]
@@ -212,6 +202,39 @@ def main():
     print("-" * 60)
     print("Confidence Distribution:", benchmark_data["confidence_distribution"])
     print("=" * 60)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Benchmark Traffic Intelligence pipeline.")
+    parser.add_argument("--samples-per-scenario", type=int, default=250, help="Samples per scenario")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--compare", action="store_true", help="Compare heuristic rules vs hybrid ML")
+    args = parser.parse_args()
+
+    if args.compare:
+        print("\n>>> Running Pure Heuristic Baseline Benchmark...")
+        heuristic_res = run_benchmark(samples_per_scenario=args.samples_per_scenario, seed=args.seed, enable_ml=False)
+        print_benchmark_table(heuristic_res)
+
+        print("\n>>> Running Hybrid Rules + Isolation Forest Benchmark...")
+        hybrid_res = run_benchmark(samples_per_scenario=args.samples_per_scenario, seed=args.seed, enable_ml=True)
+        print_benchmark_table(hybrid_res)
+
+        print("\n" + "=" * 60)
+        print(" COMPARATIVE SUMMARY")
+        print("=" * 60)
+        print(f"{'Metric':<25} | {'Heuristic Rules':<15} | {'Hybrid ML':<15}")
+        print("-" * 60)
+        print(f"{'Mean Latency':<25} | {heuristic_res['performance']['mean_latency_ms']:<10} ms | {hybrid_res['performance']['mean_latency_ms']:<10} ms")
+        print(f"{'P99 Latency':<25} | {heuristic_res['performance']['p99_latency_ms']:<10} ms | {hybrid_res['performance']['p99_latency_ms']:<10} ms")
+        print(f"{'Throughput':<25} | {heuristic_res['performance']['throughput_rps']:<10} rps| {hybrid_res['performance']['throughput_rps']:<10} rps")
+        print(f"{'Precision':<25} | {heuristic_res['binary_threat_metrics']['precision'] * 100:<10.2f} % | {hybrid_res['binary_threat_metrics']['precision'] * 100:<10.2f} %")
+        print(f"{'Recall':<25} | {heuristic_res['binary_threat_metrics']['recall'] * 100:<10.2f} % | {hybrid_res['binary_threat_metrics']['recall'] * 100:<10.2f} %")
+        print(f"{'F1 Score':<25} | {heuristic_res['binary_threat_metrics']['f1'] * 100:<10.2f} % | {hybrid_res['binary_threat_metrics']['f1'] * 100:<10.2f} %")
+        print("=" * 60)
+    else:
+        res = run_benchmark(samples_per_scenario=args.samples_per_scenario, seed=args.seed, enable_ml=True)
+        print_benchmark_table(res)
 
 
 if __name__ == "__main__":

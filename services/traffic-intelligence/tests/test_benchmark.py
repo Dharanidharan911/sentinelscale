@@ -44,3 +44,4 @@ def test_benchmark_execution():
     metrics = results["binary_threat_metrics"]
     assert metrics["precision"] >= 0.90
     assert metrics["recall"] >= 0.90
+

@@ -5,10 +5,14 @@ class Settings(BaseSettings):
     SERVICE_NAME: str = "traffic-intelligence"
     SERVICE_VERSION: str = "0.1.0"
     CONTRACT_VERSION: str = "1.0.0"
-    MODEL_VERSION: str = "traffic-rules-v1"
+    MODEL_VERSION: str = "traffic-hybrid-v1"
     ENVIRONMENT: str = "development"
     LOG_LEVEL: str = "INFO"
     PORT: int = 8001
+
+    # Machine Learning Settings
+    ENABLE_ML_ANOMALY_DETECTOR: bool = True
+    ML_ANOMALY_WEIGHT: float = 0.30
 
     # Pipeline Thresholds & Parameters
     BURST_RATIO_ELEVATED: float = 1.75

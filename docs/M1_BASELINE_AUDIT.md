@@ -175,3 +175,4 @@ The repository already defines 6 deterministic evaluation scenarios in `services
 1. Execute Phase M1-1: Create `docs/TRAFFIC_INTELLIGENCE_SPEC.md` documenting all volume, client, HTTP, and temporal features.
 2. Execute Phase M1-2: Create a deterministic dataset generator script in `services/traffic-intelligence/tools/generate_dataset.py`.
 3. Execute Phase M1-3: Create a benchmark runner in `services/traffic-intelligence/tools/benchmark.py` and produce `docs/TRAFFIC_MODEL_BASELINE.md`.
+

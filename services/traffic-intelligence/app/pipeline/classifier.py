@@ -20,7 +20,8 @@ class TrafficClassifier:
     def classify(
         features: ExtractedTrafficFeatures,
         burst_result: BurstDetectionResult,
-        scores: ScoreResult
+        scores: ScoreResult,
+        ml_signal: str | None = None,
     ) -> ClassificationResult:
         if not features.has_telemetry:
             return ClassificationResult(
@@ -29,6 +30,10 @@ class TrafficClassifier:
             )
 
         signals: List[str] = []
+
+        # 0. ML Anomaly signal if present
+        if ml_signal:
+            signals.append(ml_signal)
 
         # 1. Burst signal
         if burst_result.signal_tag:

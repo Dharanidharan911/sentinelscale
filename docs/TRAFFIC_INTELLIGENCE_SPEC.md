@@ -180,3 +180,4 @@ To maintain scientific integrity, this document distinguishes between features t
 The exact feature vector currently extractable and available for model training or benchmarking consists of **7 continuous features**:
 
 $$\mathbf{x} = \begin{bmatrix} \text{total\_rps} \\ \text{burst\_ratio} \\ \text{error\_rate} \\ \text{ip\_concentration} \\ \text{ua\_anomaly\_ratio} \\ \text{single\_endpoint\_ratio} \\ \text{data\_completeness} \end{bmatrix}$$
+
