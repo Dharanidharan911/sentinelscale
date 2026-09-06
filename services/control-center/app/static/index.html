@@ -174,58 +174,151 @@
     </div>
 
     <!-- ROW 2: SCALING INTELLIGENCE & HPA COMPARISON HERO PANEL -->
-    <section class="decision-hero">
+    <section class="decision-hero" id="decision-hero-section">
       <div class="hero-header">
         <div class="hero-title-group">
           <span class="hero-icon">⚖️</span>
           <div>
-            <h2 class="hero-title">Scaling Intelligence & HPA Baseline Comparison</h2>
-            <span class="hero-subtitle">Deterministic capacity evaluation vs naive Kubernetes reactive HPA</span>
+            <h2 class="hero-title">Scaling Intelligence & Decision Explainability</h2>
+            <span class="hero-subtitle">Comparative analysis: Naive Kubernetes Reactive HPA vs SentinelScale Security-Aware Recommendation</span>
           </div>
         </div>
         <div class="hero-action-group">
           <span class="action-tag" id="decision-action-tag">ACTION: --</span>
           <span class="policy-tag" id="decision-policy-tag">POLICY: default_safety_policy</span>
+          <span class="mode-tag">SHADOW MODE (DRY-RUN)</span>
         </div>
       </div>
 
+      <!-- ERROR / EVALUATION ALERT BANNER (HIDDEN BY DEFAULT) -->
+      <div id="eval-alert-banner" class="eval-alert-banner" style="display: none;">
+        <span class="alert-icon">⚠️</span>
+        <span id="eval-alert-message" class="alert-text">Evaluation failed.</span>
+      </div>
+
+      <!-- PRIMARY SIDE-BY-SIDE SCALING COMPARISON -->
       <div class="comparison-grid">
+        <!-- HPA BASELINE -->
         <div class="comparison-box hpa-box">
-          <span class="box-label">REACTIVE HPA BASELINE</span>
+          <div class="box-header-row">
+            <span class="box-label">REACTIVE HPA BASELINE</span>
+            <span class="box-sub-badge">NAIVE CPU-BASED</span>
+          </div>
           <div class="box-num-group">
             <span class="box-num" id="hpa-pods">--</span>
             <span class="box-unit">PODS</span>
           </div>
-          <span class="box-sub">Based purely on CPU threshold</span>
+          <div class="box-formula">
+            <code>ceil(pods &times; (CPU / 70%))</code>
+          </div>
+          <div class="box-details">
+            <span class="detail-item">Target: <strong>70% CPU</strong></span>
+            <span class="detail-item bias-warning">Bias: <strong>Assumes 100% traffic is legitimate</strong></span>
+          </div>
         </div>
 
+        <!-- COMPARATIVE DELTA & IMPACT -->
         <div class="comparison-vs">
           <span class="vs-text">VS</span>
-          <div class="delta-pill" id="delta-pill">DELTA: -- PODS</div>
+          <div class="delta-pill delta-neutral" id="delta-pill">DELTA: -- PODS</div>
+          <div class="delta-narrative" id="delta-narrative">Waiting for operator evaluation...</div>
         </div>
 
+        <!-- SENTINELSCALE RECOMMENDATION -->
         <div class="comparison-box ss-box">
-          <span class="box-label">SENTINELSCALE SECURITY-AWARE</span>
+          <div class="box-header-row">
+            <span class="box-label">SENTINELSCALE RECOMMENDATION</span>
+            <span class="box-sub-badge ss-badge">SECURITY-AWARE</span>
+          </div>
           <div class="box-num-group">
             <span class="box-num" id="ss-pods">--</span>
             <span class="box-unit">PODS</span>
           </div>
-          <span class="box-sub" id="ss-cap-info">Calculated for legitimate demand</span>
+          <div class="box-formula">
+            <code>ceil(predicted_legit_rps / 350.0 RPS)</code>
+          </div>
+          <div class="box-details">
+            <span class="detail-item">Capacity: <strong>350.0 RPS / Pod</strong></span>
+            <span class="detail-item ss-guard">Guard: <strong>Filters attack volume & enforces limits</strong></span>
+          </div>
         </div>
       </div>
 
+      <!-- CAUSAL FLOW RIBBON ("WHY SENTINELSCALE?") -->
+      <div class="causal-ribbon-container">
+        <div class="ribbon-title-row">
+          <span class="ribbon-title">💡 CAUSAL DECISION PIPELINE ("WHY SENTINELSCALE?")</span>
+          <span class="ribbon-subtitle">Deterministic trace from raw telemetry to final recommendation</span>
+        </div>
+        <div class="causal-pipeline">
+          <!-- Step 1: Workload Telemetry -->
+          <div class="causal-node" id="node-telemetry">
+            <div class="node-step">1. RAW WORKLOAD</div>
+            <div class="node-val" id="causal-raw-rps">-- RPS</div>
+            <div class="node-sub" id="causal-raw-cpu">CPU: --%</div>
+          </div>
+          <div class="causal-arrow">➔</div>
+          <!-- Step 2: Traffic Intelligence -->
+          <div class="causal-node" id="node-traffic">
+            <div class="node-step">2. TRAFFIC RISK</div>
+            <div class="node-val" id="causal-risk-score">--</div>
+            <div class="node-sub" id="causal-filtered-rps">Filtered: -- RPS</div>
+          </div>
+          <div class="causal-arrow">➔</div>
+          <!-- Step 3: Demand Intelligence -->
+          <div class="causal-node" id="node-demand">
+            <div class="node-step">3. LEGITIMATE DEMAND</div>
+            <div class="node-val" id="causal-legit-rps">-- RPS</div>
+            <div class="node-sub" id="causal-demand-conf">Conf: --%</div>
+          </div>
+          <div class="causal-arrow">➔</div>
+          <!-- Step 4: Capacity vs Demand -->
+          <div class="causal-node" id="node-capacity">
+            <div class="node-step">4. CLUSTER CAPACITY</div>
+            <div class="node-val" id="causal-capacity-rps">-- RPS</div>
+            <div class="node-sub" id="causal-headroom">Headroom: --</div>
+          </div>
+          <div class="causal-arrow">➔</div>
+          <!-- Step 5: Policy Guardrails -->
+          <div class="causal-node" id="node-policy">
+            <div class="node-step">5. GUARDRAILS</div>
+            <div class="node-val" id="causal-policy-name">default_policy</div>
+            <div class="node-sub">Range: [1 .. 10]</div>
+          </div>
+          <div class="causal-arrow">➔</div>
+          <!-- Step 6: Final Action -->
+          <div class="causal-node node-final" id="node-action">
+            <div class="node-step">6. ACTION</div>
+            <div class="node-val" id="causal-final-action">--</div>
+            <div class="node-sub" id="causal-final-pods">-- Pods</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DETERMINISTIC EXPLAINABILITY RATIONALE & SIGNALS -->
       <div class="reasoning-box">
-        <span class="reasoning-label">DETERMINISTIC EXPLAINABILITY:</span>
+        <div class="reasoning-header">
+          <span class="reasoning-label">DETERMINISTIC EXPLAINABILITY RATIONALE</span>
+          <div class="contributing-signals-header">
+            <span class="signals-label">Contributing Signals:</span>
+            <div class="signals-container" id="contributing-signals">
+              <span class="signal-tag">No evaluation performed</span>
+            </div>
+          </div>
+        </div>
         <p class="reasoning-text" id="decision-reason">
-          Click "Evaluate Current State" or wait for the next evaluation cycle to generate live explainability rationale.
+          Click "Evaluate Current State" above to trigger a real-time security-aware scaling evaluation and generate deterministic explainability rationale.
         </p>
       </div>
 
+      <!-- DECISION METADATA FOOTER -->
       <div class="decision-footer">
         <div class="footer-meta">
           <span>Decision ID: <code id="decision-id">--</code></span>
           <span>Trace ID: <code id="decision-trace-id">--</code></span>
+          <span>Confidence: <strong id="decision-confidence">--%</strong></span>
           <span>Evaluated At: <span id="decision-timestamp">--</span></span>
+          <span class="age-badge" id="decision-age">NOT EVALUATED</span>
         </div>
         <div class="footer-tags">
           <span class="badge badge-outline">SHADOW EVALUATION ONLY</span>

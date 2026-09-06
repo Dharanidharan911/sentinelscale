@@ -35,4 +35,6 @@ def test_static_index_page():
     assert "SENTINEL" in resp.text
     assert "Control Center" in resp.text
     assert "SAFETY STATUS &amp; INVARIANTS" in resp.text or "SAFETY STATUS" in resp.text
+    assert "70% CPU" in resp.text
+    assert "350.0 RPS / Pod" in resp.text
 

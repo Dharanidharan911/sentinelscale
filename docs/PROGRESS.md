@@ -179,6 +179,12 @@ python run_tests.py
 ### Stage M3-10: Unified Observability (Metrics ➔ Logs ➔ Traces)
 - [x] `telemetry/tempo/`, `telemetry/loki/`, `telemetry/grafana/provisioning/datasources/`, `telemetry/grafana/dashboards/unified_observability.json`, `infrastructure/kubernetes/tempo/`, `infrastructure/kubernetes/loki/`, `services/platform/tests/test_unified_observability.py` & `docs/STAGE_M3_10_UNIFIED_OBSERVABILITY.md` — Established unified observability foundation across Metrics (Prometheus), Logs (Loki), and Traces (Tempo). Configured Grafana datasource correlations with `tracesToLogs` and `derivedFields` regex matching `otel_trace_id` and `trace_id`. Provisioned unified executive dashboard (`sentinelscale-unified-obs`) allowing end-to-end bidirectional operator drilldown: Metrics ➔ Logs ➔ Traces ➔ Distributed Waterfall (`Platform` ➔ `M1`/`M2` ➔ `DecisionEngine`).
 
+### Stage M3-11A: Control Center UI Foundation & Read-Only API Integration
+- [x] `services/control-center/` — Created standalone FastAPI Control Center service on `:8080`, proxy endpoints for Platform API (`/api/proxy/version`, `/resources/current`, `/history`, `/decision/orchestrate`, `/decision/aggregate`), dark-themed operator interface, 4s live polling, and full test suite passing.
+
+### Stage M3-11B: Scaling Comparison & Decision Explainability
+- [x] `services/control-center/app/static/` & `services/control-center/tests/` — Upgraded Control Center with centerpiece Reactive HPA Baseline vs SentinelScale Security-Aware side-by-side comparison, directional Pod Delta badge with human-readable interpretation narrative, 6-step Causal Decision Pipeline ribbon ("Why SentinelScale?"), contributing security signals tags, deterministic explainability rationale callout, evaluation age tracker with stale warning, and direct Tempo/Grafana trace deep-links. Validated live against running Docker Compose stack with 0 scaling mutations.
+
 ---
 
 ## Safety Invariants Preserved
@@ -188,3 +194,4 @@ python run_tests.py
 4. All Historical, Anomaly, Predictive, and Evaluation endpoints are strictly read-only.
 5. All database queries remain fully parameterized with SQLite WAL and indexing.
 6. Zero ML/LLM or non-deterministic algorithms in the scaling actuation path.
+
