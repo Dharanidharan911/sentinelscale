@@ -33,7 +33,13 @@ SERVICES = [
         "service_dir": REPO_ROOT / "services" / "platform",
         "test_dir": "services/platform/tests",
     },
+    {
+        "name": "Control Center",
+        "service_dir": REPO_ROOT / "services" / "control-center",
+        "test_dir": "services/control-center/tests",
+    },
 ]
+
 
 
 def run_service_tests(service_info: dict) -> int:

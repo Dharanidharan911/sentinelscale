@@ -99,6 +99,34 @@ services:
     networks:
       - sentinelscale-net
 
+  control-center:
+    build:
+      context: ./services/control-center
+      dockerfile: Dockerfile
+    container_name: sentinelscale-control-center
+    restart: unless-stopped
+    ports:
+      - "${CONTROL_CENTER_PORT:-8080}:8080"
+    environment:
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - PLATFORM_URL=http://platform:8003
+      - GRAFANA_URL=http://localhost:3000
+      - TEMPO_URL=http://localhost:3200
+      - LOKI_URL=http://localhost:3100
+      - PROMETHEUS_URL=http://localhost:9090
+      - PORT=8080
+    depends_on:
+      platform:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - sentinelscale-net
+
   prometheus:
     image: prom/prometheus:v2.50.1
     container_name: sentinelscale-prometheus

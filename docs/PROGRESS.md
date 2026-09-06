@@ -41,6 +41,7 @@
 | **Stage M3-8** | **HPA vs SentinelScale Experimentation** | **✅ COMPLETE** |
 | **Stage M3-9** | **OpenTelemetry Foundation & Distributed Tracing** | **✅ COMPLETE** |
 | **Stage M3-10** | **Unified Observability (Metrics ➔ Logs ➔ Traces)** | **✅ COMPLETE** |
+| **Stage M3-11A** | **Control Center UI Foundation & Read-Only API Integration** | **✅ COMPLETE** |
 
 ---
 
@@ -56,8 +57,10 @@ python run_tests.py
 | **Demo API** | 9 passed | ✅ |
 | **Traffic Intelligence (M1)** | 5 passed | ✅ |
 | **Demand Intelligence (M2)** | 100 passed | ✅ |
-| **Platform & Decision Engine (M3)** | 311 passed, 2 skipped | ✅ |
-| **Total** | **425 passed, 2 skipped** | **✅ ALL PASSING** |
+| **Platform & Decision Engine (M3)** | 313 passed | ✅ |
+| **Control Center (UI Service)** | 9 passed | ✅ |
+| **Total** | **436 passed** | **✅ ALL PASSING** |
+
 
 ---
 

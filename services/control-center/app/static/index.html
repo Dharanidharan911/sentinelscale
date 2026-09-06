@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SentinelScale — Operator Control Center</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="dark-theme">
+  <header class="top-header">
+    <div class="header-left">
+      <div class="brand">
+        <span class="brand-icon">⬢</span>
+        <span class="brand-name">SENTINEL<span class="brand-accent">SCALE</span></span>
+        <span class="brand-badge">CONTROL CENTER</span>
+      </div>
+      <div class="workload-pill">
+        <span class="label">TARGET:</span>
+        <span class="val" id="target-workload">default / demo-api</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="live-indicator">
+        <span class="pulse-dot"></span>
+        <span id="sync-status">LIVE (4s)</span>
+        <span class="sync-time" id="last-updated">--:--:--</span>
+      </div>
+      <button id="btn-evaluate" class="btn btn-primary" onclick="window.triggerEvaluation()">
+        <span class="btn-icon">⚡</span>
+        <span class="btn-text">Evaluate Current State</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- SAFETY INVARIANTS STATUS BANNER -->
+  <section class="safety-banner">
+    <div class="safety-title">
+      <span class="shield-icon">🛡️</span>
+      <span>SAFETY STATUS & INVARIANTS</span>
+    </div>
+    <div class="safety-grid">
+      <div class="safety-card">
+        <span class="safety-label">SHADOW MODE</span>
+        <span class="safety-val status-green" id="safety-shadow">ACTIVE</span>
+      </div>
+      <div class="safety-card">
+        <span class="safety-label">DRY RUN</span>
+        <span class="safety-val status-green" id="safety-dryrun">ACTIVE</span>
+      </div>
+      <div class="safety-card">
+        <span class="safety-label">AUTONOMOUS ACTIONS</span>
+        <span class="safety-val status-cyan" id="safety-autonomous">DISABLED</span>
+      </div>
+      <div class="safety-card">
+        <span class="safety-label">K8s MUTATIONS</span>
+        <span class="safety-val status-emerald" id="safety-mutations">0 (READ-ONLY)</span>
+      </div>
+    </div>
+  </section>
+
+  <main class="dashboard-content">
+    <!-- ROW 1: TRI-INTELLIGENCE SUMMARY CARDS -->
+    <div class="grid-3-col">
+      <!-- 1. RESOURCE & CLUSTER STATE (M3 Observer) -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">1. Workload Resource State</span>
+          <span class="card-badge" id="res-badge">M3 OBSERVER</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-row">
+            <span class="metric-label">Running Replicas:</span>
+            <span class="metric-val" id="res-running-pods">--</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Desired / Pending:</span>
+            <span class="metric-val" id="res-desired-pending">-- / --</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">CPU Utilization:</span>
+            <div class="gauge-bar-wrapper">
+              <div class="gauge-bar"><div class="gauge-fill" id="res-cpu-fill" style="width: 0%;"></div></div>
+              <span class="gauge-text" id="res-cpu-val">--%</span>
+            </div>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Memory Utilization:</span>
+            <div class="gauge-bar-wrapper">
+              <div class="gauge-bar"><div class="gauge-fill gauge-fill-mem" id="res-mem-fill" style="width: 0%;"></div></div>
+              <span class="gauge-text" id="res-mem-val">--%</span>
+            </div>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Current Capacity:</span>
+            <span class="metric-val" id="res-capacity">-- RPS</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Observed Rate / p95:</span>
+            <span class="metric-val" id="res-rate-p95">-- RPS / -- ms</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. TRAFFIC & SECURITY INTELLIGENCE (M1) -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">2. Traffic Intelligence</span>
+          <span class="card-badge" id="traffic-badge">M1 SECURITY</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-row">
+            <span class="metric-label">Classification:</span>
+            <span class="status-pill" id="traffic-classification">UNKNOWN</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Security Risk Score:</span>
+            <div class="gauge-bar-wrapper">
+              <div class="gauge-bar"><div class="gauge-fill gauge-fill-risk" id="traffic-risk-fill" style="width: 0%;"></div></div>
+              <span class="gauge-text" id="traffic-risk-val">--</span>
+            </div>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Total Traffic:</span>
+            <span class="metric-val" id="traffic-total-rps">-- RPS</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Legitimate Demand:</span>
+            <span class="metric-val status-green-text" id="traffic-legit-rps">-- RPS</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Suspicious Volume:</span>
+            <span class="metric-val status-red-text" id="traffic-susp-rps">-- RPS</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Signals & Confidence:</span>
+            <span class="metric-val" id="traffic-signals">-- (conf: --%)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. DEMAND INTELLIGENCE (M2) -->
+      <div class="telemetry-card">
+        <div class="card-header">
+          <span class="card-title">3. Demand Forecast</span>
+          <span class="card-badge" id="demand-badge">M2 FORECAST</span>
+        </div>
+        <div class="card-body">
+          <div class="metric-row">
+            <span class="metric-label">Predicted Legitimate:</span>
+            <span class="metric-val highlight-cyan" id="demand-pred-rps">-- RPS</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Forecast Horizon:</span>
+            <span class="metric-val" id="demand-horizon">300s (5m)</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Lower / Upper Bound:</span>
+            <span class="metric-val" id="demand-bounds">-- .. -- RPS</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Model Confidence:</span>
+            <span class="metric-val" id="demand-conf">--%</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Forecast Generated:</span>
+            <span class="metric-val" id="demand-time">--</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Demand Provenance:</span>
+            <span class="metric-val" id="demand-source">Cleaned Traffic Stream</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 2: SCALING INTELLIGENCE & HPA COMPARISON HERO PANEL -->
+    <section class="decision-hero">
+      <div class="hero-header">
+        <div class="hero-title-group">
+          <span class="hero-icon">⚖️</span>
+          <div>
+            <h2 class="hero-title">Scaling Intelligence & HPA Baseline Comparison</h2>
+            <span class="hero-subtitle">Deterministic capacity evaluation vs naive Kubernetes reactive HPA</span>
+          </div>
+        </div>
+        <div class="hero-action-group">
+          <span class="action-tag" id="decision-action-tag">ACTION: --</span>
+          <span class="policy-tag" id="decision-policy-tag">POLICY: default_safety_policy</span>
+        </div>
+      </div>
+
+      <div class="comparison-grid">
+        <div class="comparison-box hpa-box">
+          <span class="box-label">REACTIVE HPA BASELINE</span>
+          <div class="box-num-group">
+            <span class="box-num" id="hpa-pods">--</span>
+            <span class="box-unit">PODS</span>
+          </div>
+          <span class="box-sub">Based purely on CPU threshold</span>
+        </div>
+
+        <div class="comparison-vs">
+          <span class="vs-text">VS</span>
+          <div class="delta-pill" id="delta-pill">DELTA: -- PODS</div>
+        </div>
+
+        <div class="comparison-box ss-box">
+          <span class="box-label">SENTINELSCALE SECURITY-AWARE</span>
+          <div class="box-num-group">
+            <span class="box-num" id="ss-pods">--</span>
+            <span class="box-unit">PODS</span>
+          </div>
+          <span class="box-sub" id="ss-cap-info">Calculated for legitimate demand</span>
+        </div>
+      </div>
+
+      <div class="reasoning-box">
+        <span class="reasoning-label">DETERMINISTIC EXPLAINABILITY:</span>
+        <p class="reasoning-text" id="decision-reason">
+          Click "Evaluate Current State" or wait for the next evaluation cycle to generate live explainability rationale.
+        </p>
+      </div>
+
+      <div class="decision-footer">
+        <div class="footer-meta">
+          <span>Decision ID: <code id="decision-id">--</code></span>
+          <span>Trace ID: <code id="decision-trace-id">--</code></span>
+          <span>Evaluated At: <span id="decision-timestamp">--</span></span>
+        </div>
+        <div class="footer-tags">
+          <span class="badge badge-outline">SHADOW EVALUATION ONLY</span>
+          <span class="badge badge-outline">0 K8s MUTATIONS</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ROW 3: DECISION HISTORY & OBSERVABILITY SHORTCUTS -->
+    <div class="grid-2-col">
+      <!-- DECISION HISTORY TABLE -->
+      <div class="telemetry-card history-card">
+        <div class="card-header">
+          <span class="card-title">Recent Decision Audit Feed</span>
+          <span class="card-badge">LIVE HISTORY</span>
+        </div>
+        <div class="table-wrapper">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Action</th>
+                <th>SS Pods</th>
+                <th>HPA Pods</th>
+                <th>Delta</th>
+                <th>Risk</th>
+                <th>Trace</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              <tr>
+                <td colspan="7" class="loading-cell">Loading decision history...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- OBSERVABILITY SHORTCUTS & DRILL-DOWNS -->
+      <div class="telemetry-card obs-card">
+        <div class="card-header">
+          <span class="card-title">Observability Drill-Down</span>
+          <span class="card-badge">TELEMETRY STACK</span>
+        </div>
+        <div class="obs-grid">
+          <a href="http://localhost:3000/d/sentinelscale-unified-obs" target="_blank" class="obs-tile">
+            <span class="tile-icon">📊</span>
+            <span class="tile-title">Grafana Unified Dashboard</span>
+            <span class="tile-desc">Full-stack metrics, Loki logs, & Tempo waterfall traces</span>
+          </a>
+          <a href="http://localhost:3000/d/sentinelscale-infra-obs" target="_blank" class="obs-tile">
+            <span class="tile-icon">📈</span>
+            <span class="tile-title">Grafana Infrastructure</span>
+            <span class="tile-desc">HPA Baseline, CPU/Memory telemetry, & Replica comparison</span>
+          </a>
+          <a href="http://localhost:3200" target="_blank" class="obs-tile" id="tempo-shortcut">
+            <span class="tile-icon">🔍</span>
+            <span class="tile-title">Tempo Tracing</span>
+            <span class="tile-desc">Direct OTel distributed trace search & span graph</span>
+          </a>
+          <a href="http://localhost:3100" target="_blank" class="obs-tile">
+            <span class="tile-icon">📜</span>
+            <span class="tile-title">Loki Log Streams</span>
+            <span class="tile-desc">Structured JSON logs indexed with trace_id & otel_trace_id</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <span>SentinelScale Cloud Resource Intelligence & Security-Aware Autoscaling Platform</span>
+    <span>Stage M3-11A Control Center UI • Dry-Run Invariant Verified</span>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
+

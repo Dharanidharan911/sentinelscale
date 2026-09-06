@@ -1,0 +1,2 @@
+"""Control Center test suite."""
+
