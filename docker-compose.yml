@@ -170,6 +170,44 @@ services:
     networks:
       - sentinelscale-net
 
+  tempo:
+    image: grafana/tempo:2.4.1
+    container_name: sentinelscale-tempo
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - ./telemetry/tempo/tempo-config.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    ports:
+      - "${TEMPO_PORT:-3200}:3200"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3200/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - sentinelscale-net
+
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: sentinelscale-loki
+    restart: unless-stopped
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./telemetry/loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+      - loki-data:/var/loki
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - sentinelscale-net
+
   k6:
     image: grafana/k6:0.50.0
     container_name: sentinelscale-k6
@@ -191,6 +229,10 @@ volumes:
   prometheus-data:
     driver: local
   grafana-data:
+    driver: local
+  tempo-data:
+    driver: local
+  loki-data:
     driver: local
 
 networks:

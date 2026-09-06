@@ -38,9 +38,9 @@
 | **Stage M3-4** | **k6 Load Testing Harness** | **✅ COMPLETE** |
 | **Stage M3-5** | **Live Kubernetes Runtime & Service Orchestration** | **✅ COMPLETE** |
 | **Stage M3-6** | **Kubernetes Resource Intelligence & Telemetry Normalization** | **✅ COMPLETE** |
-| **Stage M3-7** | **Real Kubernetes HPA Baseline Controller** | **✅ COMPLETE** |
 | **Stage M3-8** | **HPA vs SentinelScale Experimentation** | **✅ COMPLETE** |
 | **Stage M3-9** | **OpenTelemetry Foundation & Distributed Tracing** | **✅ COMPLETE** |
+| **Stage M3-10** | **Unified Observability (Metrics ➔ Logs ➔ Traces)** | **✅ COMPLETE** |
 
 ---
 
@@ -56,8 +56,8 @@ python run_tests.py
 | **Demo API** | 9 passed | ✅ |
 | **Traffic Intelligence (M1)** | 5 passed | ✅ |
 | **Demand Intelligence (M2)** | 100 passed | ✅ |
-| **Platform & Decision Engine (M3)** | 305 passed, 2 skipped | ✅ |
-| **Total** | **419 passed, 2 skipped** | **✅ ALL PASSING** |
+| **Platform & Decision Engine (M3)** | 311 passed, 2 skipped | ✅ |
+| **Total** | **425 passed, 2 skipped** | **✅ ALL PASSING** |
 
 ---
 
@@ -172,6 +172,9 @@ python run_tests.py
 
 ### Stage M3-9: OpenTelemetry Foundation & Distributed Tracing
 - [x] `services/platform/app/telemetry/tracing.py`, `telemetry/otel/otel-collector-config.yaml`, `infrastructure/kubernetes/otel-collector/`, `services/platform/tests/test_opentelemetry_tracing.py` & `docs/STAGE_M3_9_OPENTELEMETRY.md` — Established production-grade OpenTelemetry distributed tracing foundation, W3C `traceparent` context propagation across HTTP boundaries (`TrafficIntelligenceClient`, `DemandIntelligenceClient`), trace-to-log correlation in structured JSON logs (`otel_trace_id`, `otel_span_id`), observational span instrumentation (`ContextAggregatorService`, `DecisionEngine`), and OpenTelemetry Collector deployment definitions across Docker Compose and Kubernetes.
+
+### Stage M3-10: Unified Observability (Metrics ➔ Logs ➔ Traces)
+- [x] `telemetry/tempo/`, `telemetry/loki/`, `telemetry/grafana/provisioning/datasources/`, `telemetry/grafana/dashboards/unified_observability.json`, `infrastructure/kubernetes/tempo/`, `infrastructure/kubernetes/loki/`, `services/platform/tests/test_unified_observability.py` & `docs/STAGE_M3_10_UNIFIED_OBSERVABILITY.md` — Established unified observability foundation across Metrics (Prometheus), Logs (Loki), and Traces (Tempo). Configured Grafana datasource correlations with `tracesToLogs` and `derivedFields` regex matching `otel_trace_id` and `trace_id`. Provisioned unified executive dashboard (`sentinelscale-unified-obs`) allowing end-to-end bidirectional operator drilldown: Metrics ➔ Logs ➔ Traces ➔ Distributed Waterfall (`Platform` ➔ `M1`/`M2` ➔ `DecisionEngine`).
 
 ---
 
