@@ -196,3 +196,21 @@ async def aggregate_decision_context(request: Request):
     except Exception:
         payload = {"namespace": settings.DEFAULT_NAMESPACE, "workload": settings.DEFAULT_WORKLOAD}
     return await _proxy_post("/api/v1/decision/aggregate", payload=payload)
+
+
+@router.get("/experiments")
+async def get_experiments(
+    scenario_id: Optional[str] = Query(default=None, description="Optional scenario identifier filter"),
+):
+    """Proxy empirical M3-8 comparative experiment summaries."""
+    params: Dict[str, Any] = {}
+    if scenario_id:
+        params["scenario_id"] = scenario_id
+    return await _proxy_get("/api/v1/experiments", params=params)
+
+
+@router.get("/experiments/{run_id}")
+async def get_experiment_detail(run_id: str):
+    """Proxy detailed canonical M3-8 experiment result with complete timeseries."""
+    return await _proxy_get(f"/api/v1/experiments/{run_id}")
+

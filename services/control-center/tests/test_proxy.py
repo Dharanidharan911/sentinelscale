@@ -326,3 +326,161 @@ async def test_proxy_intelligence_anomalies_success():
         assert data["overall_severity"] == "ELEVATED"
         assert len(data["signals"]) == 1
         assert data["signals"][0]["z_score"] == 6.5
+
+
+@pytest.mark.asyncio
+async def test_proxy_experiments_list_success():
+    mock_response = httpx.Response(
+        200,
+        json=[
+            {
+                "run_id": "EXP-20260906-001",
+                "scenario_id": "scenario_a_normal",
+                "scenario_name": "Scenario A — Normal / Low Demand",
+                "start_time": "2026-09-05T19:58:23.051066+00:00",
+                "end_time": "2026-09-05T19:59:42.946392+00:00",
+                "duration_seconds": 79.9,
+                "workload_summary": {
+                    "total_requests": 1226,
+                    "average_rps": 24.5,
+                    "peak_rps": 36.75,
+                    "error_rate": 0.0,
+                    "p50_latency_ms": 7.34,
+                    "p95_latency_ms": 13.47
+                },
+                "hpa_summary": {
+                    "initial_replicas": 2,
+                    "final_replicas": 2,
+                    "peak_replicas": 2,
+                    "min_replicas": 2,
+                    "pod_seconds": 157.72,
+                    "replica_hours": 0.0438
+                },
+                "sentinelscale_summary": {
+                    "initial_recommended_pods": 2,
+                    "final_recommended_pods": 2,
+                    "peak_recommended_pods": 2,
+                    "min_recommended_pods": 2,
+                    "pod_seconds": 157.72,
+                    "replica_hours": 0.0438,
+                    "decisions_count": 19,
+                    "action_distribution": {"HOLD": 19}
+                },
+                "comparison_summary": {
+                    "pod_seconds_delta": 0.0,
+                    "replica_hours_delta": 0.0,
+                    "max_replica_difference": 0,
+                    "divergence_classification": "agreement",
+                    "performance_guardrails_passed": True
+                },
+                "performance_guardrails": {
+                    "p95_latency_guardrail_ms": 1000.0,
+                    "observed_p95_latency_ms": 13.47,
+                    "error_rate_guardrail": 0.05,
+                    "observed_error_rate": 0.0,
+                    "guardrails_passed": True
+                },
+                "safety": {
+                    "dry_run": True,
+                    "shadow_mode": True,
+                    "sentinel_mutations_count": 0,
+                    "autonomous_actions_enabled": False
+                },
+                "has_timeseries": True
+            }
+        ],
+        request=httpx.Request("GET", "http://platform:8003/api/v1/experiments")
+    )
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = mock_response
+        resp = client.get("/api/proxy/experiments?scenario_id=scenario_a_normal")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["run_id"] == "EXP-20260906-001"
+        assert data[0]["comparison_summary"]["divergence_classification"] == "agreement"
+
+
+@pytest.mark.asyncio
+async def test_proxy_experiment_detail_success():
+    mock_response = httpx.Response(
+        200,
+        json={
+            "run_id": "EXP-20260906-001",
+            "scenario_id": "scenario_a_normal",
+            "scenario_name": "Scenario A — Normal / Low Demand",
+            "start_time": "2026-09-05T19:58:23.051066+00:00",
+            "end_time": "2026-09-05T19:59:42.946392+00:00",
+            "duration_seconds": 79.9,
+            "phases": [],
+            "workload_summary": {
+                "total_requests": 1226,
+                "average_rps": 24.5,
+                "peak_rps": 36.75,
+                "error_rate": 0.0,
+                "p50_latency_ms": 7.34,
+                "p95_latency_ms": 13.47
+            },
+            "hpa_summary": {
+                "initial_replicas": 2,
+                "final_replicas": 2,
+                "peak_replicas": 2,
+                "min_replicas": 2,
+                "pod_seconds": 157.72,
+                "replica_hours": 0.0438
+            },
+            "sentinelscale_summary": {
+                "initial_recommended_pods": 2,
+                "final_recommended_pods": 2,
+                "peak_recommended_pods": 2,
+                "min_recommended_pods": 2,
+                "pod_seconds": 157.72,
+                "replica_hours": 0.0438,
+                "decisions_count": 19,
+                "action_distribution": {"HOLD": 19}
+            },
+            "comparison_summary": {
+                "pod_seconds_delta": 0.0,
+                "replica_hours_delta": 0.0,
+                "max_replica_difference": 0,
+                "divergence_classification": "agreement",
+                "performance_guardrails_passed": True
+            },
+            "performance_guardrails": {
+                "p95_latency_guardrail_ms": 1000.0,
+                "observed_p95_latency_ms": 13.47,
+                "error_rate_guardrail": 0.05,
+                "observed_error_rate": 0.0,
+                "guardrails_passed": True
+            },
+            "safety": {
+                "dry_run": True,
+                "shadow_mode": True,
+                "sentinel_mutations_count": 0,
+                "autonomous_actions_enabled": False
+            },
+            "timeseries": [
+                {
+                    "timestamp": "2026-09-05T19:58:25.181687+00:00",
+                    "elapsed_seconds": 1.04,
+                    "hpa_replicas": 2,
+                    "hpa_desired_replicas": 2,
+                    "hpa_cpu_percent": 4,
+                    "sentinelscale_recommended_pods": 2,
+                    "replica_delta": 0,
+                    "sentinelscale_action": "HOLD",
+                    "decision_reason": "Normal legitimate demand."
+                }
+            ]
+        },
+        request=httpx.Request("GET", "http://platform:8003/api/v1/experiments/EXP-20260906-001")
+    )
+    with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
+        mock_get.return_value = mock_response
+        resp = client.get("/api/proxy/experiments/EXP-20260906-001")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["run_id"] == "EXP-20260906-001"
+        assert len(data["timeseries"]) == 1
+        assert data["timeseries"][0]["sentinelscale_action"] == "HOLD"
+

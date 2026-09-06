@@ -452,7 +452,183 @@
       </div>
     </div>
 
-    <!-- ROW 5: OBSERVABILITY SHORTCUTS & DRILL-DOWNS -->
+    <!-- ROW 5: EMPIRICAL BENCHMARK EXPERIMENTS (M3-8 VALIDATION) -->
+    <div class="telemetry-card experiment-card-full" id="experiment-section">
+      <div class="card-header">
+        <div class="header-with-badge">
+          <span class="card-title">🔬 Empirical Benchmark Experiments (M3-8 Validation)</span>
+          <span class="card-badge" id="exp-total-badge">-- TRIALS</span>
+        </div>
+        <div class="experiment-controls">
+          <label for="experiment-select" class="control-label">Trial:</label>
+          <select id="experiment-select" class="history-filter-select experiment-select" onchange="window.selectExperiment(this.value)">
+            <option value="">Loading experiment trials...</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="window.refreshExperiments()">🔄 Refresh</button>
+        </div>
+      </div>
+      <div class="card-body experiment-card-body">
+        <!-- Metadata & Guardrails Strip -->
+        <div class="exp-meta-strip">
+          <div class="exp-meta-left">
+            <span class="exp-scenario-name" id="exp-scenario-name">--</span>
+            <span class="exp-scenario-id" id="exp-scenario-id">(--)</span>
+            <span class="exp-duration-pill" id="exp-duration-pill">--s</span>
+          </div>
+          <div class="exp-meta-right">
+            <span class="status-pill" id="exp-divergence-pill">--</span>
+            <span class="status-pill status-legitimate" id="exp-guardrails-pill">GUARDRAILS: --</span>
+            <span class="status-pill status-cyan-pill" id="exp-safety-pill">0 MUTATIONS (DRY RUN)</span>
+            <a id="exp-grafana-link" href="http://localhost:3000/d/sentinelscale-unified-obs" target="_blank" class="btn btn-secondary btn-sm exp-grafana-btn">
+              📊 Grafana Timeframe
+            </a>
+          </div>
+        </div>
+
+        <!-- 4-Column KPI Grid: HPA vs SS Comparison, Workload & Guardrails -->
+        <div class="exp-kpi-grid">
+          <!-- 1. HPA Resource Footprint -->
+          <div class="exp-kpi-card">
+            <div class="exp-kpi-header">
+              <span class="exp-kpi-title">Traditional Reactive HPA</span>
+              <span class="exp-kpi-badge badge-hpa">BASELINE</span>
+            </div>
+            <div class="exp-kpi-body">
+              <div class="metric-row">
+                <span class="metric-label">Peak / Initial Replicas:</span>
+                <span class="metric-val" id="exp-hpa-peak-init">-- / --</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Replica-Hours:</span>
+                <span class="metric-val highlight-amber" id="exp-hpa-replica-hours">--</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Pod-Seconds:</span>
+                <span class="metric-val" id="exp-hpa-pod-seconds">-- s</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Scale Events (Up / Down):</span>
+                <span class="metric-val" id="exp-hpa-scale-events">-- / --</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. SentinelScale Footprint -->
+          <div class="exp-kpi-card">
+            <div class="exp-kpi-header">
+              <span class="exp-kpi-title">SentinelScale Recommended</span>
+              <span class="exp-kpi-badge badge-ss">INTELLIGENT</span>
+            </div>
+            <div class="exp-kpi-body">
+              <div class="metric-row">
+                <span class="metric-label">Peak / Initial Replicas:</span>
+                <span class="metric-val" id="exp-ss-peak-init">-- / --</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Replica-Hours:</span>
+                <span class="metric-val highlight-cyan" id="exp-ss-replica-hours">--</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Pod-Seconds:</span>
+                <span class="metric-val" id="exp-ss-pod-seconds">-- s</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Decisions Count:</span>
+                <span class="metric-val" id="exp-ss-decisions-count">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Comparative Delta & Savings -->
+          <div class="exp-kpi-card">
+            <div class="exp-kpi-header">
+              <span class="exp-kpi-title">Comparative Footprint Delta</span>
+              <span class="exp-kpi-badge badge-delta" id="exp-delta-badge">DELTA</span>
+            </div>
+            <div class="exp-kpi-body">
+              <div class="metric-row">
+                <span class="metric-label">Pod-Seconds Delta:</span>
+                <span class="metric-val" id="exp-delta-pod-seconds">-- s</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Replica-Hours Delta:</span>
+                <span class="metric-val" id="exp-delta-replica-hours">--</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Max Replica Difference:</span>
+                <span class="metric-val" id="exp-delta-max-diff">-- pods</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Classification:</span>
+                <span class="metric-val highlight-green" id="exp-delta-classification">--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Workload & Performance Guardrails -->
+          <div class="exp-kpi-card">
+            <div class="exp-kpi-header">
+              <span class="exp-kpi-title">Workload & Guardrails</span>
+              <span class="exp-kpi-badge badge-guardrails" id="exp-kpi-guardrail-badge">PASSED</span>
+            </div>
+            <div class="exp-kpi-body">
+              <div class="metric-row">
+                <span class="metric-label">Total Requests / Avg RPS:</span>
+                <span class="metric-val" id="exp-workload-reqs-rps">-- / --</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Peak Workload RPS:</span>
+                <span class="metric-val" id="exp-workload-peak-rps">-- RPS</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Observed p95 / Limit:</span>
+                <span class="metric-val" id="exp-guardrail-p95">-- ms / -- ms</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Error Rate / Limit:</span>
+                <span class="metric-val" id="exp-guardrail-errors">--% / --%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- High-Resolution Timeline & SVG Chart -->
+        <div class="exp-timeline-section">
+          <div class="exp-timeline-header">
+            <span class="exp-timeline-title">📈 High-Resolution Replica Timeline Comparison</span>
+            <div class="trend-legend">
+              <span class="legend-item"><span class="legend-dot dot-hpa"></span>HPA Replicas</span>
+              <span class="legend-item"><span class="legend-dot dot-ss"></span>SentinelScale Recommended</span>
+              <span class="legend-item"><span class="legend-dot dot-phase"></span>Phase Markers</span>
+            </div>
+          </div>
+          <div class="exp-chart-container" id="exp-chart-container">
+            <svg id="exp-chart-svg" viewBox="0 0 800 220" class="exp-chart-svg" preserveAspectRatio="none">
+              <!-- Rendered dynamically by app.js -->
+            </svg>
+            <div id="exp-chart-tooltip" class="exp-chart-tooltip" style="display: none;"></div>
+          </div>
+        </div>
+
+        <!-- Lifecycle Phases & Scaling Actions Breakdown -->
+        <div class="exp-breakdown-row">
+          <div class="exp-breakdown-col">
+            <span class="breakdown-title">Lifecycle Phases:</span>
+            <div class="breakdown-chips" id="exp-phases-chips">
+              <span class="loading-cell">Loading phases...</span>
+            </div>
+          </div>
+          <div class="exp-breakdown-col">
+            <span class="breakdown-title">Scaling Action Distribution:</span>
+            <div class="breakdown-chips" id="exp-actions-chips">
+              <span class="loading-cell">Loading actions...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 6: OBSERVABILITY SHORTCUTS & DRILL-DOWNS -->
     <div class="telemetry-card obs-card">
       <div class="card-header">
         <span class="card-title">🔍 Telemetry Drill-Down & Observability Suite</span>

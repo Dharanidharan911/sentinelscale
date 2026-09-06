@@ -101,6 +101,43 @@
   const elHistRetention = document.getElementById("hist-retention");
   const elHistoryBody = document.getElementById("history-tbody");
 
+  // DOM Elements — M3-11D Benchmark Experiments
+  const elExpTotalBadge = document.getElementById("exp-total-badge");
+  const elExpSelect = document.getElementById("experiment-select");
+  const elExpScenarioName = document.getElementById("exp-scenario-name");
+  const elExpScenarioId = document.getElementById("exp-scenario-id");
+  const elExpDurationPill = document.getElementById("exp-duration-pill");
+  const elExpDivergencePill = document.getElementById("exp-divergence-pill");
+  const elExpGuardrailsPill = document.getElementById("exp-guardrails-pill");
+  const elExpSafetyPill = document.getElementById("exp-safety-pill");
+  const elExpGrafanaLink = document.getElementById("exp-grafana-link");
+  const elExpHpaPeakInit = document.getElementById("exp-hpa-peak-init");
+  const elExpHpaReplicaHours = document.getElementById("exp-hpa-replica-hours");
+  const elExpHpaPodSeconds = document.getElementById("exp-hpa-pod-seconds");
+  const elExpHpaScaleEvents = document.getElementById("exp-hpa-scale-events");
+  const elExpSsPeakInit = document.getElementById("exp-ss-peak-init");
+  const elExpSsReplicaHours = document.getElementById("exp-ss-replica-hours");
+  const elExpSsPodSeconds = document.getElementById("exp-ss-pod-seconds");
+  const elExpSsDecisionsCount = document.getElementById("exp-ss-decisions-count");
+  const elExpDeltaBadge = document.getElementById("exp-delta-badge");
+  const elExpDeltaPodSeconds = document.getElementById("exp-delta-pod-seconds");
+  const elExpDeltaReplicaHours = document.getElementById("exp-delta-replica-hours");
+  const elExpDeltaMaxDiff = document.getElementById("exp-delta-max-diff");
+  const elExpDeltaClassification = document.getElementById("exp-delta-classification");
+  const elExpKpiGuardrailBadge = document.getElementById("exp-kpi-guardrail-badge");
+  const elExpWorkloadReqsRps = document.getElementById("exp-workload-reqs-rps");
+  const elExpWorkloadPeakRps = document.getElementById("exp-workload-peak-rps");
+  const elExpGuardrailP95 = document.getElementById("exp-guardrail-p95");
+  const elExpGuardrailErrors = document.getElementById("exp-guardrail-errors");
+  const elExpChartContainer = document.getElementById("exp-chart-container");
+  const elExpChartSvg = document.getElementById("exp-chart-svg");
+  const elExpChartTooltip = document.getElementById("exp-chart-tooltip");
+  const elExpPhasesChips = document.getElementById("exp-phases-chips");
+  const elExpActionsChips = document.getElementById("exp-actions-chips");
+
+  let loadedExperiments = [];
+  let currentSelectedExperimentId = null;
+
   function updateClock() {
     const now = new Date();
     elLastUpdated.textContent = now.toTimeString().split(" ")[0];
@@ -736,6 +773,321 @@
     }
   }
 
+  // ==============================================================================
+  // STAGE M3-11D: EMPIRICAL BENCHMARK EXPERIMENTS CONTROLLER
+  // ==============================================================================
+
+  async function fetchExperiments() {
+    try {
+      const res = await fetch("/api/proxy/experiments");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      loadedExperiments = await res.json();
+
+      elExpTotalBadge.textContent = `${loadedExperiments.length} TRIALS LOADED`;
+
+      if (loadedExperiments.length === 0) {
+        elExpSelect.innerHTML = `<option value="">No experiment trials found</option>`;
+        return;
+      }
+
+      // Populate dropdown
+      const prevSelected = currentSelectedExperimentId || elExpSelect.value;
+      elExpSelect.innerHTML = loadedExperiments.map(exp => {
+        return `<option value="${exp.run_id}">${exp.scenario_name} (${exp.run_id})</option>`;
+      }).join("");
+
+      // Preserve selection or default to first
+      const exists = loadedExperiments.some(e => e.run_id === prevSelected);
+      const targetId = exists ? prevSelected : loadedExperiments[0].run_id;
+      elExpSelect.value = targetId;
+      currentSelectedExperimentId = targetId;
+
+      await fetchExperimentDetail(targetId);
+    } catch (err) {
+      console.warn("Experiments list fetch error:", err);
+      elExpTotalBadge.textContent = "FETCH ERROR";
+    }
+  }
+
+  async function fetchExperimentDetail(runId) {
+    if (!runId) return;
+    try {
+      const res = await fetch(`/api/proxy/experiments/${runId}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const exp = await res.json();
+      currentSelectedExperimentId = runId;
+      renderExperiment(exp);
+    } catch (err) {
+      console.error(`Failed to fetch experiment detail for ${runId}:`, err);
+    }
+  }
+
+  function renderExperiment(exp) {
+    if (!exp) return;
+
+    // Header & Meta Strip
+    elExpScenarioName.textContent = exp.scenario_name;
+    elExpScenarioId.textContent = `(${exp.scenario_id} / ${exp.run_id})`;
+    elExpDurationPill.textContent = `${exp.duration_seconds.toFixed(1)}s`;
+
+    // Divergence Classification Pill
+    const divClass = exp.comparison_summary.divergence_classification;
+    if (divClass === "agreement") {
+      elExpDivergencePill.textContent = "AGREEMENT (BASELINE MATCH)";
+      elExpDivergencePill.className = "status-pill status-legitimate";
+    } else if (divClass === "sentinelscale_recommends_fewer") {
+      elExpDivergencePill.textContent = "SUPPRESSED OVERPROVISIONING";
+      elExpDivergencePill.className = "status-pill status-suspicious";
+    } else if (divClass === "sentinelscale_recommends_more") {
+      elExpDivergencePill.textContent = "PROACTIVE SCALE-UP";
+      elExpDivergencePill.className = "status-pill status-cyan-pill";
+    } else {
+      elExpDivergencePill.textContent = "MIXED ADAPTATION";
+      elExpDivergencePill.className = "status-pill";
+    }
+
+    // Guardrails Pill
+    const guardrailsPassed = exp.performance_guardrails.guardrails_passed;
+    elExpGuardrailsPill.textContent = `GUARDRAILS: ${guardrailsPassed ? "PASSED" : "VIOLATED"}`;
+    elExpGuardrailsPill.className = `status-pill ${guardrailsPassed ? "status-legitimate" : "status-attack"}`;
+
+    // Grafana Deep-Link with exact trial timeframe
+    if (exp.start_time && exp.end_time) {
+      const fromMs = new Date(exp.start_time).getTime();
+      const toMs = new Date(exp.end_time).getTime();
+      elExpGrafanaLink.href = `http://localhost:3000/d/sentinelscale-unified-obs?from=${fromMs}&to=${toMs}`;
+    }
+
+    // 1. HPA KPI Card
+    elExpHpaPeakInit.textContent = `${exp.hpa_summary.peak_replicas} / ${exp.hpa_summary.initial_replicas}`;
+    elExpHpaReplicaHours.textContent = exp.hpa_summary.replica_hours.toFixed(4);
+    elExpHpaPodSeconds.textContent = `${exp.hpa_summary.pod_seconds.toFixed(1)} s`;
+    const upEvents = exp.hpa_summary.scale_up_events_count ?? 0;
+    const downEvents = exp.hpa_summary.scale_down_events_count ?? 0;
+    elExpHpaScaleEvents.textContent = `${upEvents} up / ${downEvents} down`;
+
+    // 2. SentinelScale KPI Card
+    elExpSsPeakInit.textContent = `${exp.sentinelscale_summary.peak_recommended_pods} / ${exp.sentinelscale_summary.initial_recommended_pods}`;
+    elExpSsReplicaHours.textContent = exp.sentinelscale_summary.replica_hours.toFixed(4);
+    elExpSsPodSeconds.textContent = `${exp.sentinelscale_summary.pod_seconds.toFixed(1)} s`;
+    elExpSsDecisionsCount.textContent = `${exp.sentinelscale_summary.decisions_count} cycles`;
+
+    // 3. Comparison Delta KPI Card
+    const podDelta = exp.comparison_summary.pod_seconds_delta;
+    const repDelta = exp.comparison_summary.replica_hours_delta;
+    elExpDeltaPodSeconds.textContent = `${podDelta >= 0 ? "+" : ""}${podDelta.toFixed(1)} s`;
+    elExpDeltaReplicaHours.textContent = `${repDelta >= 0 ? "+" : ""}${repDelta.toFixed(4)}`;
+    elExpDeltaMaxDiff.textContent = `${exp.comparison_summary.max_replica_difference} pods`;
+    elExpDeltaClassification.textContent = exp.comparison_summary.divergence_classification;
+
+    if (podDelta < 0) {
+      elExpDeltaBadge.className = "exp-kpi-badge badge-delta";
+      elExpDeltaBadge.textContent = "SAVINGS";
+    } else if (podDelta > 0) {
+      elExpDeltaBadge.className = "exp-kpi-badge badge-ss";
+      elExpDeltaBadge.textContent = "PROACTIVE";
+    } else {
+      elExpDeltaBadge.className = "exp-kpi-badge";
+      elExpDeltaBadge.textContent = "MATCH";
+    }
+
+    // 4. Workload & Performance Guardrails
+    elExpWorkloadReqsRps.textContent = `${exp.workload_summary.total_requests.toLocaleString()} reqs / ${exp.workload_summary.average_rps.toFixed(1)} RPS`;
+    elExpWorkloadPeakRps.textContent = `${exp.workload_summary.peak_rps.toFixed(1)} RPS`;
+    elExpGuardrailP95.textContent = `${exp.workload_summary.p95_latency_ms.toFixed(2)} ms / ${exp.performance_guardrails.p95_latency_guardrail_ms.toFixed(0)} ms`;
+    elExpGuardrailErrors.textContent = `${(exp.workload_summary.error_rate * 100).toFixed(2)}% / ${(exp.performance_guardrails.error_rate_guardrail * 100).toFixed(1)}%`;
+    elExpKpiGuardrailBadge.textContent = guardrailsPassed ? "PASSED" : "VIOLATED";
+    elExpKpiGuardrailBadge.className = `exp-kpi-badge ${guardrailsPassed ? "badge-guardrails" : "badge-hpa"}`;
+
+    // Lifecycle Phases Chips
+    if (exp.phases && exp.phases.length > 0) {
+      elExpPhasesChips.innerHTML = exp.phases.map(p => {
+        return `<span class="phase-chip">${p.phase_name} (+${p.elapsed_seconds.toFixed(1)}s)</span>`;
+      }).join("");
+    } else {
+      elExpPhasesChips.innerHTML = `<span class="phase-chip">Continuous Trial</span>`;
+    }
+
+    // Action Distribution Chips
+    const actions = exp.sentinelscale_summary.action_distribution || {};
+    const actionKeys = Object.keys(actions);
+    if (actionKeys.length > 0) {
+      elExpActionsChips.innerHTML = actionKeys.map(k => {
+        return `<span class="action-chip">${k}: ${actions[k]}</span>`;
+      }).join("");
+    } else {
+      elExpActionsChips.innerHTML = `<span class="action-chip">No actions recorded</span>`;
+    }
+
+    // Render High-Resolution SVG Timeline
+    renderExperimentChart(exp);
+  }
+
+  function renderExperimentChart(exp) {
+    const points = exp.timeseries || [];
+    if (points.length === 0) {
+      elExpChartSvg.innerHTML = `
+        <text x="400" y="110" fill="#64748b" font-family="monospace" font-size="13" text-anchor="middle">
+          No high-resolution timeseries points recorded for this trial.
+        </text>
+      `;
+      return;
+    }
+
+    const svgWidth = 800;
+    const svgHeight = 220;
+    const pad = { top: 25, right: 35, bottom: 35, left: 45 };
+    const plotW = svgWidth - pad.left - pad.right;
+    const plotH = svgHeight - pad.top - pad.bottom;
+
+    // Determine domain
+    const maxElapsed = Math.max(
+      exp.duration_seconds || 1,
+      ...points.map(p => p.elapsed_seconds || 0)
+    );
+
+    let maxReplicas = Math.max(
+      4,
+      ...points.map(p => Math.max(p.hpa_replicas || 2, p.sentinelscale_recommended_pods || 2))
+    );
+    maxReplicas = Math.ceil(maxReplicas + 1);
+
+    const getX = (sec) => pad.left + (sec / maxElapsed) * plotW;
+    const getY = (val) => pad.top + plotH - (val / maxReplicas) * plotH;
+
+    let svgHtml = "";
+
+    // 1. Grid lines and Y-axis labels
+    const yTicks = Math.min(maxReplicas, 6);
+    for (let i = 0; i <= yTicks; i++) {
+      const val = Math.round((i / yTicks) * maxReplicas);
+      const y = getY(val);
+      svgHtml += `
+        <line x1="${pad.left}" y1="${y}" x2="${svgWidth - pad.right}" y2="${y}" stroke="#162238" stroke-width="1" />
+        <text x="${pad.left - 8}" y="${y + 4}" fill="#64748b" font-family="monospace" font-size="10" text-anchor="end">${val}</text>
+      `;
+    }
+
+    // 2. X-axis ticks
+    const xTicksCount = 5;
+    for (let i = 0; i <= xTicksCount; i++) {
+      const sec = (i / xTicksCount) * maxElapsed;
+      const x = getX(sec);
+      svgHtml += `
+        <line x1="${x}" y1="${pad.top}" x2="${x}" y2="${pad.top + plotH}" stroke="#162238" stroke-width="1" />
+        <text x="${x}" y="${svgHeight - 12}" fill="#64748b" font-family="monospace" font-size="10" text-anchor="middle">${sec.toFixed(0)}s</text>
+      `;
+    }
+
+    // 3. Phase boundary vertical lines and labels
+    if (exp.phases && exp.phases.length > 0) {
+      exp.phases.forEach((phase, idx) => {
+        if (phase.elapsed_seconds > 0 && phase.elapsed_seconds < maxElapsed) {
+          const px = getX(phase.elapsed_seconds);
+          svgHtml += `
+            <line x1="${px}" y1="${pad.top}" x2="${px}" y2="${pad.top + plotH}" stroke="#475569" stroke-width="1" stroke-dasharray="3,3" />
+            <text x="${px + 4}" y="${pad.top + 10 + (idx % 2) * 12}" fill="#94a3b8" font-family="monospace" font-size="9" text-anchor="start">${phase.phase_name}</text>
+          `;
+        }
+      });
+    }
+
+    // 4. Construct Step Paths
+    // HPA Step Path
+    let hpaPath = "";
+    let ssPath = "";
+
+    points.forEach((pt, i) => {
+      const x = getX(pt.elapsed_seconds);
+      const yHpa = getY(pt.hpa_replicas);
+      const ySs = getY(pt.sentinelscale_recommended_pods);
+
+      if (i === 0) {
+        hpaPath = `M ${x} ${yHpa}`;
+        ssPath = `M ${x} ${ySs}`;
+      } else {
+        const prevPt = points[i - 1];
+        const prevX = getX(prevPt.elapsed_seconds);
+        // Step interpolation: horizontal to current X, then vertical
+        hpaPath += ` H ${x} V ${yHpa}`;
+        ssPath += ` H ${x} V ${ySs}`;
+      }
+    });
+
+    // Render HPA Path (Amber dashed)
+    svgHtml += `
+      <path d="${hpaPath}" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="4,4" />
+    `;
+
+    // Render SentinelScale Path (Cyan solid)
+    svgHtml += `
+      <path d="${ssPath}" fill="none" stroke="#06b6d4" stroke-width="2.5" />
+    `;
+
+    // 5. Render interactive invisible hover trigger points
+    points.forEach((pt, idx) => {
+      const cx = getX(pt.elapsed_seconds);
+      const cyHpa = getY(pt.hpa_replicas);
+      const cySs = getY(pt.sentinelscale_recommended_pods);
+
+      svgHtml += `
+        <circle cx="${cx}" cy="${cyHpa}" r="4" fill="#f59e0b" opacity="0.8" />
+        <circle cx="${cx}" cy="${cySs}" r="4" fill="#06b6d4" opacity="0.8" />
+        <rect x="${cx - 8}" y="${pad.top}" width="16" height="${plotH}" fill="transparent" 
+              data-idx="${idx}" class="exp-chart-hitbox" style="cursor: crosshair;" />
+      `;
+    });
+
+    elExpChartSvg.innerHTML = svgHtml;
+
+    // Bind hover tooltips
+    const hitboxes = elExpChartSvg.querySelectorAll(".exp-chart-hitbox");
+    hitboxes.forEach(box => {
+      box.addEventListener("mousemove", (e) => {
+        const idx = parseInt(box.getAttribute("data-idx"), 10);
+        const pt = points[idx];
+        if (!pt) return;
+
+        const rect = elExpChartContainer.getBoundingClientRect();
+        const posX = e.clientX - rect.left;
+        const posY = e.clientY - rect.top;
+
+        const delta = pt.replica_delta;
+        const deltaStr = delta >= 0 ? `+${delta}` : `${delta}`;
+
+        elExpChartTooltip.innerHTML = `
+          <div style="font-weight: 700; color: #38bdf8; margin-bottom: 2px;">Elapsed: ${pt.elapsed_seconds.toFixed(1)}s</div>
+          <div>HPA Replicas: <span style="color: #f59e0b; font-weight: 600;">${pt.hpa_replicas}</span></div>
+          <div>SentinelScale: <span style="color: #06b6d4; font-weight: 600;">${pt.sentinelscale_recommended_pods}</span> (Δ ${deltaStr})</div>
+          <div>Action: <strong>${pt.sentinelscale_action || "HOLD"}</strong></div>
+          ${pt.hpa_cpu_percent !== undefined && pt.hpa_cpu_percent !== null ? `<div>Target CPU: ${pt.hpa_cpu_percent}%</div>` : ""}
+        `;
+
+        // Position tooltip inside container bounds
+        const tooltipW = 180;
+        const leftPos = Math.min(Math.max(10, posX + 15), rect.width - tooltipW - 10);
+        const topPos = Math.max(10, Math.min(posY - 60, rect.height - 100));
+
+        elExpChartTooltip.style.left = `${leftPos}px`;
+        elExpChartTooltip.style.top = `${topPos}px`;
+        elExpChartTooltip.style.display = "block";
+      });
+
+      box.addEventListener("mouseleave", () => {
+        elExpChartTooltip.style.display = "none";
+      });
+    });
+  }
+
+  window.selectExperiment = function (runId) {
+    if (!runId) return;
+    fetchExperimentDetail(runId);
+  };
+
+  window.refreshExperiments = function () {
+    fetchExperiments();
+  };
+
   window.triggerEvaluation = async function () {
     if (isEvaluating) return;
     isEvaluating = true;
@@ -773,7 +1125,8 @@
         fetchDecisionHistory(),
         fetchHistoricalTrends(),
         fetchAnomalyAssessment(),
-        fetchHistoryStats()
+        fetchHistoryStats(),
+        fetchExperiments()
       ]);
     } catch (err) {
       console.error("Evaluation error:", err);
@@ -794,6 +1147,7 @@
   fetchHistoricalTrends();
   fetchAnomalyAssessment();
   fetchHistoryStats();
+  fetchExperiments();
 
   // Periodic Polling
   setInterval(() => {
@@ -808,3 +1162,4 @@
   setInterval(updateClock, 1000);
 
 })();
+

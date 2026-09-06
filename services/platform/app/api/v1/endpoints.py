@@ -6,6 +6,7 @@ from app.models.anomaly import AnomalyAssessment
 from app.models.context import DecisionContext, PolicyOverrides
 from app.models.decision import ScalingDecision
 from app.models.evaluation import EvaluationResult
+from app.models.experiment import ExperimentResult, ExperimentRunSummary
 from app.models.history import HistoryStats, StoredObservation
 from app.models.intelligence import HistoricalDivergence, HistoricalSummary, HistoricalTrends
 from app.models.prediction import PredictiveForecast
@@ -14,6 +15,7 @@ from app.services.context_aggregator import AggregationError, ContextAggregatorS
 from app.services.decision_engine import DecisionEngine
 from app.services.evaluation.base import HPAEvaluationService
 from app.services.evaluation.factory import get_evaluation_service
+from app.services.experiments.reader import ExperimentResultsReader, get_experiment_reader
 from app.services.history.base import DecisionHistoryStore
 from app.services.history.factory import get_history_store
 from app.services.intelligence.anomaly import AnomalyIntelligenceService
@@ -458,3 +460,41 @@ async def get_hpa_vs_sentinelscale_evaluation(
         raise
     except ValueError as val_err:
         raise HTTPException(status_code=400, detail=str(val_err)) from val_err
+
+
+# ==============================================================================
+# Empirical M3-8 Comparative Experiment Endpoints (Stage M3-11D)
+# ==============================================================================
+
+def get_experiments_service() -> ExperimentResultsReader:
+    return get_experiment_reader()
+
+
+@router.get("/experiments", response_model=List[ExperimentRunSummary])
+async def list_experiments(
+    scenario_id: Optional[str] = Query(default=None, description="Optional filter by scenario identifier (e.g. 'scenario_a_normal')."),
+    service: ExperimentResultsReader = Depends(get_experiments_service),
+) -> List[ExperimentRunSummary]:
+    """
+    Retrieve list of empirical M3-8 HPA vs SentinelScale benchmark experiment trials.
+    Strictly read-only discovery of canonical experiment results.
+    """
+    return service.list_experiments(scenario_id=scenario_id)
+
+
+@router.get("/experiments/{run_id}", response_model=ExperimentResult)
+async def get_experiment_by_run_id(
+    run_id: str,
+    service: ExperimentResultsReader = Depends(get_experiments_service),
+) -> ExperimentResult:
+    """
+    Retrieve detailed canonical M3-8 experiment result including complete timeseries telemetry.
+    """
+    experiment = service.get_experiment(run_id=run_id)
+    if not experiment:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Experiment trial '{run_id}' not found."
+        )
+    return experiment
+

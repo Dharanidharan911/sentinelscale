@@ -44,6 +44,7 @@
 | **Stage M3-11A** | **Control Center UI Foundation & Read-Only API Integration** | **✅ COMPLETE** |
 | **Stage M3-11B** | **Scaling Comparison & Decision Explainability** | **✅ COMPLETE** |
 | **Stage M3-11C** | **History & Anomaly Intelligence** | **✅ COMPLETE** |
+| **Stage M3-11D** | **Experiment & Observability Integration** | **✅ COMPLETE** |
 
 ---
 
@@ -59,9 +60,9 @@ python run_tests.py
 | **Demo API** | 9 passed | ✅ |
 | **Traffic Intelligence (M1)** | 5 passed | ✅ |
 | **Demand Intelligence (M2)** | 100 passed | ✅ |
-| **Platform & Decision Engine (M3)** | 313 passed | ✅ |
-| **Control Center (UI Service)** | 16 passed | ✅ |
-| **Total** | **443 passed** | **✅ ALL PASSING** |
+| **Platform & Decision Engine (M3)** | 319 passed | ✅ |
+| **Control Center (UI Service)** | 18 passed | ✅ |
+| **Total** | **451 passed** | **✅ ALL PASSING** |
 
 
 ---
@@ -189,6 +190,10 @@ python run_tests.py
 
 ### Stage M3-11C: History & Anomaly Intelligence
 - [x] `services/control-center/` — Implemented comprehensive historical trend visualization with interactive window selection (`1h`, `6h`, `24h`), native SVG multi-series chart (Demand RPS, Capacity RPS, Security Risk, Replicas), real-time Behavioral Baseline & Anomaly Intelligence dashboard (overall severity pill, baseline sample count tracker, deterministic human-readable explanation callout, per-signal deviation cards displaying value, baseline mean, z-score, direction arrows, and detected pattern chips), extended 9-column decision audit trail with action filtering (`ALL`, `HOLD`, `SCALE`, `RATE_LIMIT`), status indicators, retention tracking, and trace drill-downs. Validated end-to-end with live ObservationScheduler and zero scaling mutations.
+
+### Stage M3-11D: Experiment & Observability Integration
+- [x] `services/platform/app/models/experiment.py`, `services/platform/app/services/experiments/reader.py`, `services/control-center/app/api/proxy.py`, `services/control-center/app/static/` & `services/platform/tests/test_experiment_api.py` — Exposed canonical M3-8 comparative benchmark results via strictly read-only Platform endpoints (`GET /api/v1/experiments`, `GET /api/v1/experiments/{run_id}`) conforming to `experiment_result.schema.json`. Integrated interactive Control Center section featuring trial selection across all 6 scenarios, 4-column head-to-head KPI comparison cards (HPA footprint vs SentinelScale footprint, pod-seconds/replica-hours delta, workload latency & error guardrails), interactive high-resolution SVG replica timeline (plotting step-wise HPA vs SentinelScale recommended pods with phase boundary markers and interactive hover tooltips), lifecycle phase sequences, scaling action distributions, and direct timeframe deep-links into Grafana. Validated live against Docker Compose stack with zero scaling mutations.
+
 
 ---
 
